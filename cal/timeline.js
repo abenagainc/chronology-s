@@ -19,6 +19,17 @@
   const $ = id => document.getElementById(id);
   const sc = () => $('vt-scroll');
 
+  /* Vertical offset between the scroll-content origin and a column BODY.
+     Events are positioned inside `.col-body`, which sits below the column's
+     header — so content-coordinate y = BODY_OFFSET + day2px(day). The crosshair
+     is drawn in scroll-content coordinates, so every conversion must account
+     for this offset or events sit one header-height away from the crosshair. */
+  function bodyOffset() {
+    const s = sc();
+    const body = s.querySelector('.col-body');
+    if (!body) return 0;
+    return body.getBoundingClientRect().top - s.getBoundingClientRect().top + s.scrollTop;
+  }
   const day2px = day => (day - DAY_TOP) * PPD;
   const px2day = px => DAY_TOP + px / PPD;
   const bodyH = () => DAYS_TOTAL * PPD;
@@ -134,6 +145,11 @@
       frag.appendChild(col);
     }
     inner.appendChild(frag);
+    // the crosshair lives in a column body, which render() just destroyed — re-add
+    const cross = document.createElement('div');
+    cross.className = 'cross'; cross.id = 'cross';
+    const body = inner.querySelector('.col-body');
+    if (body) body.appendChild(cross);
 
     renderLegend();
     updateRange();
@@ -150,7 +166,7 @@
 
   function updateRange() {
     const s = sc();
-    const d1 = px2day(s.scrollTop), d2 = px2day(s.scrollTop + s.clientHeight);
+    const d1 = px2day(s.scrollTop - bodyOffset()), d2 = px2day(s.scrollTop + s.clientHeight - bodyOffset());
     const ref = BY_ID.gregorian;
     $('range').textContent =
       `viewing ${safeFormatDay(Math.round(d1), ref)} → ${safeFormatDay(Math.round(d2), ref)}` +
@@ -159,8 +175,10 @@
 
   function moveCrosshair() {
     const s = sc(), mid = s.scrollTop + s.clientHeight / 2;
-    const c = $('cross'); if (c) c.style.top = mid + 'px';
-    const day = Math.round(px2day(mid));
+    // crosshair lives in the column-body coordinate space
+    const c = $('cross');
+    if (c) c.style.top = (mid - bodyOffset()) + 'px';
+    const day = Math.round(px2day(mid - bodyOffset()));
     $('readout').textContent = S.calendars.map(cal => safeFormatDay(day, cal)).join('   ·   ');
     $('readout').classList.add('on');
   }
@@ -172,10 +190,10 @@
 
   function zoom(factor) {
     const s = sc();
-    const midDay = px2day(s.scrollTop + s.clientHeight / 2);
+    const midDay = px2day(s.scrollTop + s.clientHeight / 2 - bodyOffset());
     PPD = Math.min(Math.max(PPD * factor, 0.0008), 40);
     render();
-    s.scrollTop = day2px(midDay) - s.clientHeight / 2;
+    s.scrollTop = bodyOffset() + day2px(midDay) - s.clientHeight / 2;
     updateRange(); moveCrosshair();
   }
 
@@ -187,14 +205,21 @@
     $('down').onclick  = () => s.scrollBy({ top:  s.clientHeight * .8, behavior: 'smooth' });
     $('left').onclick  = () => s.scrollBy({ left: -COLW, behavior: 'smooth' });
     $('right').onclick = () => s.scrollBy({ left:  COLW, behavior: 'smooth' });
-    $('fit').onclick   = () => { PPD = Math.max((s.clientHeight - 30) / DAYS_TOTAL, 0.0008); render(); };
+    $('fit').onclick   = () => {
+      PPD = Math.max((s.clientHeight - 30) / DAYS_TOTAL, 0.0008);
+      render();
+      updateRange(); moveCrosshair();
+    };
     $('today').onclick = () => {
       const n = new Date();
       const day = gregorianToDay(n.getFullYear(), n.getMonth() + 1, n.getDate());
-      // about one year visible, so the date is readable but context remains
-      PPD = Math.min(Math.max((s.clientHeight - 60) / 400, 0.0008), 40);
+      // PPD is an ABSOLUTE scale (pixels per day), so set it directly rather than
+      // deriving it from clientHeight — in an embedded pane clientHeight can be
+      // 0 or a stub, which made this zoom to 0.001 px/day.
+      PPD = 2.2 / 365.2425;                 // ~2.2 px per year
       render();
-      s.scrollTop = day2px(day) - s.clientHeight / 2;
+      // scroll so the events row for today lands mid-view
+      s.scrollTop = bodyOffset() + day2px(day) - s.clientHeight / 2;
       updateRange(); moveCrosshair();
     };
     s.addEventListener('scroll', () => { updateRange(); moveCrosshair(); });
@@ -212,11 +237,12 @@
     };
     s.addEventListener('pointermove', e => {
       const r = s.getBoundingClientRect();
-      const day = Math.round(px2day(s.scrollTop + (e.clientY - r.top)));
+      // pointer y -> content y (minus the body offset) -> day
+      const day = Math.round(px2day(s.scrollTop + (e.clientY - r.top) - bodyOffset()));
       const ro = $('readout');
       ro.textContent = S.calendars.map(cal => safeFormatDay(day, cal)).join('   ·   ');
       ro.classList.add('on');
-      const c = $('cross'); if (c) c.style.top = (e.clientY - r.top) + 'px';
+      const c = $('cross'); if (c) c.style.top = (e.clientY - r.top - bodyOffset()) + 'px';
     });
     s.addEventListener('pointerleave', () => { $('readout').classList.remove('on'); moveCrosshair(); });
   }
@@ -225,12 +251,10 @@
     const s = sc();
     const n = new Date();
     const today = gregorianToDay(n.getFullYear(), n.getMonth() + 1, n.getDate());
-    PPD = Math.max((s.clientHeight - 60) / 400, 0.0008);
-    s.scrollTop = Math.max(day2px(today) - s.clientHeight * .35, 0);
-    render(); bind();
-    const cross = document.createElement('div');
-    cross.className = 'cross'; cross.id = 'cross';
-    s.appendChild(cross);
+    PPD = 2.2 / 365.2425;                   // absolute: ~2.2 px per year
+    render();
+    s.scrollTop = Math.max(bodyOffset() + day2px(today) - s.clientHeight * .35, 0);
+    bind();
     moveCrosshair();
   }
   init();
