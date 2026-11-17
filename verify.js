@@ -42,7 +42,7 @@ function load(page, files) {
   // BY_ID is a `let` that registerCalendars REASSIGNS, so expose a live getter
   // rather than a snapshot (a snapshot goes stale on the next registration).
   const combined = files.map(f => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n;\n')
-    + `\n;window.__x = { Store, gregorianCal, julianCal, hijriCal, dayToDate,
+    + `\n;window.__x = { Store, gregorianCal, julianCal, hijriCal, presetCal, dayToDate,
        dateToDay, dayToJulian, julianToDay, gregorianToJdn, gregorianToDay, DAY0, calReady,
        safeFormatDay, formatDay, registerCalendars, validDate, daysInYear,
        daysInMonth, yearLabel };
