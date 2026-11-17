@@ -8,7 +8,10 @@
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-  function cal(id) { return S.calendars.find(c => c.id === id); }
+  /* Resolve a calendar for CONVERSION: registration computes `epochDay` for a
+     calendar that states its epoch in another calendar, so the raw stored
+     object can have epochDay undefined and convert to a year in the thousands. */
+  function cal(id) { return BY_ID[id] || S.calendars.find(c => c.id === id); }
 
   /* ---------------- table ---------------- */
   function render() {

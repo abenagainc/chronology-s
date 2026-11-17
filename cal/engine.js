@@ -163,14 +163,32 @@ let BY_ID = {};
     confuses a day scale. */
 const DAY0 = gregorianToJdn(2026, 10, 1);
 function registerCalendars(cals) {
+  // Pass 1: copy every calendar into the registry. Copies matter — registration
+  // computes `epochDay` and must not mutate the caller's stored objects.
   BY_ID = {};
-  for (const src of cals) {
-    const c = { ...src };                       // copy: registration must not mutate the caller's objects
-    BY_ID[c.id] = c;
-    if (!c.epochCal) continue;
-    const ref = BY_ID[c.epochCal];
-    if (!ref) { console.warn(`calendar ${c.id}: epoch calendar "${c.epochCal}" not found`); continue; }
-    c.epochDay = dateToDay(c.epochDate[0], c.epochDate[1], c.epochDate[2], ref) - DAY0;
+  for (const src of cals) BY_ID[src.id] = { ...src };
+
+  // Pass 2: resolve epochs. Done in a SEPARATE pass over the completed registry,
+  // so a calendar can reference any other calendar regardless of array order.
+  // (Resolving inside pass 1 made it depend on registration order, and silently
+  // left epochDay undefined for anything not first.)
+  // Iterate to a fixed point so chains (A in B, B in C) resolve too.
+  for (let pass = 0; pass < 8; pass++) {
+    let progressed = false;
+    for (const c of Object.values(BY_ID)) {
+      if (!c.epochCal) continue;                    // already anchored (built-in)
+      const ref = BY_ID[c.epochCal];
+      if (!ref || !Number.isFinite(ref.epochDay)) continue;   // ref not ready yet
+      c.epochDay = dateToDay(c.epochDate[0], c.epochDate[1], c.epochDate[2], ref);
+      c.epochCalResolved = true;
+      progressed = true;
+    }
+    if (!progressed) break;
+  }
+  for (const c of Object.values(BY_ID)) {
+    if (c.epochCal && !Number.isFinite(c.epochDay)) {
+      console.warn(`calendar ${c.id}: epoch calendar "${c.epochCal}" not found`);
+    }
   }
   return BY_ID;
 }

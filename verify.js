@@ -197,5 +197,22 @@ console.log('\n[4] Conversion correctness (published reference points)');
   ok(X.calReady(G) && X.calReady(H), 'both built-ins report ready');
 }
 
+/* ========================================================================== */
+console.log('\n[5] Event conversion through a custom calendar (regression)');
+{
+  const page = makePage('index.html');
+  const X = load(page, ENGINE);
+  const g = X.gregorianCal(), h = X.hijriCal(), j = X.julianCal();
+  const c = X.presetCal('egyptian'); c.id = 'c1';
+  const R = X.registerCalendars([g, h, j, c]);
+  const day = X.dateToDay(2000, 1, 1, R.c1);
+  const gy = X.dayToDate(day, R.gregorian).y;
+  const hy = X.dayToDate(day, R.hijri).y;
+  // Egyptian 1/1/1 = 284-08-29 (Julian), so Egyptian 2000 lands ~2282 CE
+  ok(gy > 2200 && gy < 2400, 'custom-calendar event converts to ~2282, not thousands off', String(gy));
+  ok(hy > 1600 && hy < 1800, 'hijri conversion plausible', String(hy));
+  ok(Number.isFinite(R.c1.epochDay), 'custom epochDay finite', String(R.c1.epochDay));
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASS' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);

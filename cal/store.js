@@ -85,14 +85,19 @@ const Store = (() => {
   }
   function deleteEvent(s, id) { s.events = s.events.filter(e => e.id !== id); save(s); }
 
-  /* ---- conversions ---- */
+  /* ---- conversions ----
+     Always convert through the REGISTERED calendar (BY_ID), never the raw
+     stored object: registration is what computes `epochDay` for a calendar that
+     states its epoch in another calendar. Using the raw object leaves epochDay
+     undefined and dateToDay returns NaN -> a year in the thousands. */
+  const registered = (s, id) => BY_ID[id] || byId(s, id);
   const eventDay = (s, e) => {
-    const c = byId(s, e.calId);
+    const c = registered(s, e.calId);
     if (!c || !validDate(e.date.y, e.date.m, e.date.d, c)) return null;
     return dateToDay(e.date.y, e.date.m, e.date.d, c);
   };
   const eventEndDay = (s, e) => {
-    const c = byId(s, e.calId);
+    const c = registered(s, e.calId);
     if (!c || !e.end || !validDate(e.end.y, e.end.m, e.end.d, c)) return null;
     return dateToDay(e.end.y, e.end.m, e.end.d, c);
   };

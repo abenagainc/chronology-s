@@ -220,7 +220,9 @@
       if (!validDate(d.epochDate[0], d.epochDate[1], d.epochDate[2], ref)) {
         $('fErr').textContent = 'epoch date is not valid in the chosen epoch calendar'; return;
       }
-      d.epochDay = dateToDay(d.epochDate[0], d.epochDate[1], d.epochDate[2], ref) - DAY0;
+      // dateToDay() already returns a day index (ref.epochDay is an index) —
+      // subtracting DAY0 here would double-offset by 2,461,315 days.
+      d.epochDay = dateToDay(d.epochDate[0], d.epochDate[1], d.epochDate[2], ref);
       const payload = { ...d };
       delete payload.id;
       if (editing) Store.updateCalendar(S, editing.id, payload);
