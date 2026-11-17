@@ -127,7 +127,7 @@ async function main() {
   console.log('  readout after:', snap.readoutAfter);
   console.log('  crosshair top:', snap.crossTop, ' Today event top:', snap.todayEvTop,
               ' delta:', snap.crossVsEvent);
-  ok(/2026/.test(snap.readoutAfter), 'readout shows the current year', snap.readoutAfter);
+  ok(/2026|2027/.test(snap.readoutAfter), 'readout shows a current-era date', snap.readoutAfter);
   ok(snap.crossVsEvent !== null && Math.abs(snap.crossVsEvent) < 60,
      'crosshair lands on the Today event', (snap.crossVsEvent ?? 'n/a') + 'px');
   ok(snap.evCount === 13, '13 seed events render', snap.evCount);

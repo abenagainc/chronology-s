@@ -145,14 +145,11 @@
       frag.appendChild(col);
     }
     inner.appendChild(frag);
-    // The crosshair must live in a COLUMN BODY, not in #vt-inner: events are
-    // positioned inside .col-body, which starts bodyOffset() (one header height)
-    // below the scroll-content origin. In #vt-inner it drew one header-height
-    // above the events it was meant to cross.
-    const cross = document.createElement('div');
-    cross.className = 'cross'; cross.id = 'cross';
-    const firstBody = inner.querySelector('.col-body');
-    if (firstBody) firstBody.appendChild(cross);
+    // The crosshair lives in #vt-scroll's own overlay layer (added below), NOT in
+    // #vt-inner or a .col-body: those scroll with the content, so a crosshair
+    // placed there drifts as you scroll and only catches up on the next mouse
+    // move. The overlay is positioned against the scroll viewport, so the line
+    // stays where it is put.
 
     renderLegend();
     updateRange();
@@ -179,12 +176,24 @@
   function visibleCals() { return (window.calVisible ? window.calVisible() : S.calendars); }
 
   function moveCrosshair() {
-    const s = sc(), mid = s.scrollTop + s.clientHeight / 2;
-    const c = $('cross');
-    if (c) c.style.top = (mid - bodyOffset()) + 'px';
-    const day = Math.round(px2day(mid - bodyOffset()));
+    const s = sc();
+    const c = ensureCrosshair();
+    // The crosshair is a child of #vt-scroll, so its `top` is in VIEWPORT
+    // coordinates. The day map is in column-BODY coordinates, which sit
+    // bodyOffset() lower — convert through that so the readout always agrees
+    // with the line on screen.
+    const viewY = parseFloat(c.style.top);
+    if (!Number.isFinite(viewY)) return;
+    const day = Math.round(px2day(viewY - bodyOffset()));
     $('readout').textContent = visibleCals().map(cal => safeFormatDay(day, cal)).join('   ·   ');
     $('readout').classList.add('on');
+  }
+
+  /** Place the crosshair at a viewport y (used by scroll + zoom). */
+  function placeCrosshair(viewY) {
+    const c = ensureCrosshair();
+    c.style.top = viewY + 'px';
+    moveCrosshair();
   }
 
   function esc(s) {
@@ -198,7 +207,7 @@
     PPD = Math.min(Math.max(PPD * factor, 0.0008), 40);
     render();
     s.scrollTop = bodyOffset() + day2px(midDay) - s.clientHeight / 2;
-    updateRange(); moveCrosshair();
+    updateRange(); placeCrosshair(s.scrollTop + s.clientHeight / 2);
   }
 
   function setZoom(preset) {
@@ -219,7 +228,7 @@
     if (preset !== 'fit') {
       s.scrollTop = bodyOffset() + day2px(today) - s.clientHeight / 2;
     }
-    updateRange(); moveCrosshair();
+    updateRange(); placeCrosshair(s.scrollTop + s.clientHeight / 2);
   }
 
   function bind() {
@@ -237,7 +246,12 @@
     window.addEventListener('cal-visibility', () => { S = Store.load(); render(); });
     window.addEventListener('cal-changed', () => { S = Store.load(); render(); });
 
-    s.addEventListener('scroll', () => { updateRange(); moveCrosshair(); });
+    s.addEventListener('scroll', () => {
+      updateRange();
+      // keep the crosshair on the same DAY across a scroll (it is pinned to the
+      // viewport centre), then let the readout follow it
+      placeCrosshair(s.scrollTop + s.clientHeight / 2);
+    });
     window.addEventListener('keydown', e => {
       if (e.target.matches('input,select,textarea')) return;
       ({ '+': () => $('zin').click(), '=': () => $('zin').click(),
@@ -252,16 +266,21 @@
     };
     s.addEventListener('pointermove', e => {
       const r = s.getBoundingClientRect();
-      const day = Math.round(px2day(s.scrollTop + (e.clientY - r.top) - bodyOffset()));
+      // pointer -> viewport y -> body y -> day
+      const viewY = e.clientY - r.top;
+      const bodyY = viewY - bodyOffset();
+      const day = Math.round(px2day(bodyY));
       const ro = $('readout');
       ro.textContent = visibleCals().map(cal => safeFormatDay(day, cal)).join('   ·   ');
       ro.classList.add('on');
-      const c = $('cross'); if (c) c.style.top = (e.clientY - r.top - bodyOffset()) + 'px';
+      const c = ensureCrosshair();
+      c.style.top = viewY + 'px';          // viewport coordinates
     });
     s.addEventListener('pointerleave', () => { $('readout').classList.remove('on'); moveCrosshair(); });
   }
 
   function init() {
+    ensureCrosshair();
     const s = sc();
     const n = new Date();
     const today = gregorianToDay(n.getFullYear(), n.getMonth() + 1, n.getDate());
@@ -272,7 +291,21 @@
     render();
     s.scrollTop = Math.max(bodyOffset() + day2px(today) - s.clientHeight * .35, 0);
     bind();
-    moveCrosshair();
+    placeCrosshair(s.scrollTop + s.clientHeight / 2);
   }
+
+  /* Crosshair overlay: a child of #vt-scroll, so it is positioned against the
+     scroll VIEWPORT and does not move with the content. */
+  function ensureCrosshair() {
+    const s = sc();
+    let c = $('cross');
+    if (c && c.parentNode === s) return c;
+    if (c) c.remove();
+    c = document.createElement('div');
+    c.className = 'cross'; c.id = 'cross';
+    s.appendChild(c);
+    return c;
+  }
+
   init();
 })();
