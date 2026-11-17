@@ -4,51 +4,63 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chronology S — Events</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='4' fill='%23d1e7d1'/></svg>">
 <link rel="stylesheet" href="cal/styles.css">
 </head>
 <body>
-<header class="top">
-  <div class="brand">
-    <span class="logo">◆</span>
-    <span class="name">Chronology S</span>
-    <span class="sub">events · stored once, in their own calendar</span>
-  </div>
-  <nav class="tabs">
-    <a href="index.html">Timeline</a>
-    <a href="calendars.html">Calendars</a>
-    <a class="on" href="events.html">Events</a>
-  </nav>
-  <div class="spacer"></div>
-  <span class="chip" id="storeChip">dummy data</span>
-  <button class="btn ghost" id="resetBtn">reset</button>
-</header>
+<div class="app">
 
-<main class="page">
-  <div class="bar">
-    <h1>Events</h1>
-    <p class="hint">An event is entered in <b>one</b> calendar — its own native numbering.
-       Every other column shows the equivalent day in its own numbering.</p>
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round">
+          <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+        </svg>
+      </span>
+      <span class="name">Chronology S</span>
+    </div>
+    <nav class="tabs">
+      <a href="index.html">Timeline</a>
+      <a class="on" href="events.html">Events</a>
+    </nav>
     <div class="spacer"></div>
-    <input class="search" id="q" type="search" placeholder="filter events…">
-    <button class="btn primary" id="newEvtBtn">＋ new event</button>
-  </div>
+    <span class="chip" id="storeChip">dummy data</span>
+    <button class="btn ghost" id="resetBtn">reset</button>
+  </header>
 
-  <div class="tablewrap">
-    <table class="tbl" id="evtTable">
-      <thead><tr>
-        <th class="grow">Title</th><th>Calendar</th><th>Native date</th><th>Other calendars</th>
-      </tr></thead>
-      <tbody></tbody>
-    </table>
-    <div id="empty" class="empty" hidden>No events match.</div>
+  <div class="body">
+    <main class="main" style="flex-direction:column">
+      <div class="main-head">
+        <div class="row">
+          <div>
+            <h1>Events</h1>
+            <div class="sub">Enter an event in its own calendar — every other calendar shows the same day.</div>
+          </div>
+          <div class="nav">
+            <input class="search" id="q" type="search" placeholder="filter events…">
+            <button class="btn primary" id="newEvtBtn">＋ Add event</button>
+          </div>
+        </div>
+      </div>
+      <div class="tablewrap">
+        <table class="tbl" id="evtTable">
+          <thead><tr>
+            <th class="grow">Title</th><th>Calendar</th><th>Native date</th><th>Other calendars</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        <div id="empty" class="empty" hidden>No events match.</div>
+      </div>
+    </main>
   </div>
-</main>
+</div>
 
+<!-- event drawer -->
 <div class="scrim" id="scrim" hidden></div>
 <aside class="drawer" id="drawer" hidden aria-label="Event editor" style="display:none">
   <div class="drawer-head">
     <h2 id="drawerTitle">Event</h2>
-    <button class="x" id="drawerClose">✕</button>
+    <button class="btn ghost" id="drawerClose">✕</button>
   </div>
   <div class="drawer-body">
     <label class="fld"><span>Title</span><input id="eTitle" type="text"></label>
@@ -63,9 +75,9 @@
     <div class="fld">
       <span>Native date — <span id="eCalName" class="muted"></span></span>
       <div class="inline">
-        <input id="eY" type="number" step="1">
-        <select id="eM"></select>
-        <input id="eD" type="number" min="1" max="31">
+        <input id="eY" type="number" step="1" style="width:90px">
+        <select id="eM" style="width:auto"></select>
+        <input id="eD" type="number" min="1" max="31" style="width:80px">
       </div>
       <small class="muted" id="eHint"></small>
       <small class="err" id="eErr"></small>
@@ -73,9 +85,9 @@
     <div class="fld" id="eEndFld" hidden>
       <span>End date</span>
       <div class="inline">
-        <input id="eY2" type="number" step="1">
-        <select id="eM2"></select>
-        <input id="eD2" type="number" min="1" max="31">
+        <input id="eY2" type="number" step="1" style="width:90px">
+        <select id="eM2" style="width:auto"></select>
+        <input id="eD2" type="number" min="1" max="31" style="width:80px">
       </div>
     </div>
     <div class="fld">
@@ -87,13 +99,13 @@
   <div class="drawer-foot">
     <button class="btn danger" id="delBtn" hidden>delete</button>
     <div class="spacer"></div>
-    <button class="btn ghost" id="cancelBtn">cancel</button>
+    <button class="btn" id="cancelBtn">cancel</button>
     <button class="btn primary" id="saveBtn">save</button>
   </div>
 </aside>
 
-<script src="cal/engine.js?cb=30"></script>
-<script src="cal/store.js?cb=30"></script>
-<script src="cal/events.js?cb=30"></script>
+<script src="cal/engine.js"></script>
+<script src="cal/store.js"></script>
+<script src="cal/events.js"></script>
 </body>
 </html>

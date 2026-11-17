@@ -96,8 +96,9 @@
     ruler.appendChild(rb);
     frag.appendChild(ruler);
 
-    /* --- one column per calendar --- */
-    for (const cal of S.calendars) {
+    /* --- one column per VISIBLE calendar --- */
+    const visible = (window.calVisible ? window.calVisible() : S.calendars);
+    for (const cal of visible) {
       const col = document.createElement('div');
       col.className = 'col';
       col.style.width = COLW + 'px';
@@ -161,8 +162,8 @@
 
   function renderLegend() {
     const ref = BY_ID.gregorian;
-    const items = [`<span class="k"><i class="sw" style="background:#9ca3af"></i>ruler: Gregorian (reference)</i></span>`]
-      .concat(S.calendars.map(c =>
+    const items = [`<span class="k"><i class="sw" style="background:#8e8e93"></i>ruler: Gregorian (reference)</span>`]
+      .concat((window.calVisible ? window.calVisible() : S.calendars).map(c =>
         `<span class="k"><i class="sw" style="background:${c.color}"></i>${esc(c.name)}</span>`));
     $('legendCals').innerHTML = items.join('');
   }
@@ -176,13 +177,14 @@
       `  ·  ${PPD.toFixed(3)} px/day  ·  ${(PPD * 365.2425).toFixed(1)} px/year`;
   }
 
+  function visibleCals() { return (window.calVisible ? window.calVisible() : S.calendars); }
+
   function moveCrosshair() {
     const s = sc(), mid = s.scrollTop + s.clientHeight / 2;
-    // crosshair lives in the column-body coordinate space
     const c = $('cross');
     if (c) c.style.top = (mid - bodyOffset()) + 'px';
     const day = Math.round(px2day(mid - bodyOffset()));
-    $('readout').textContent = S.calendars.map(cal => safeFormatDay(day, cal)).join('   ·   ');
+    $('readout').textContent = visibleCals().map(cal => safeFormatDay(day, cal)).join('   ·   ');
     $('readout').classList.add('on');
   }
 
@@ -200,6 +202,27 @@
     updateRange(); moveCrosshair();
   }
 
+  function setZoom(preset) {
+    const s = sc();
+    const n = new Date();
+    const today = gregorianToDay(n.getFullYear(), n.getMonth() + 1, n.getDate());
+    const spans = {
+      fit: DAYS_TOTAL,
+      millennia: 365.2425 * 3000,
+      centuries: 365.2425 * 500,
+      years: 365.2425 * 400,
+      months: 365.2425 * 30,
+      days: 90,
+    };
+    const days = spans[preset] || spans.years;
+    PPD = Math.min(Math.max((s.clientHeight - 60) / days, 0.0008), 40);
+    render();
+    if (preset !== 'fit') {
+      s.scrollTop = bodyOffset() + day2px(today) - s.clientHeight / 2;
+    }
+    updateRange(); moveCrosshair();
+  }
+
   function bind() {
     const s = sc();
     $('zin').onclick   = () => zoom(1.5);
@@ -208,23 +231,13 @@
     $('down').onclick  = () => s.scrollBy({ top:  s.clientHeight * .8, behavior: 'smooth' });
     $('left').onclick  = () => s.scrollBy({ left: -COLW, behavior: 'smooth' });
     $('right').onclick = () => s.scrollBy({ left:  COLW, behavior: 'smooth' });
-    $('fit').onclick   = () => {
-      PPD = Math.max((s.clientHeight - 30) / DAYS_TOTAL, 0.0008);
-      render();
-      updateRange(); moveCrosshair();
-    };
-    $('today').onclick = () => {
-      const n = new Date();
-      const day = gregorianToDay(n.getFullYear(), n.getMonth() + 1, n.getDate());
-      // PPD is an ABSOLUTE scale (pixels per day), so set it directly rather than
-      // deriving it from clientHeight — in an embedded pane clientHeight can be
-      // 0 or a stub, which made this zoom to 0.001 px/day.
-      PPD = 2.2 / 365.2425;                 // ~2.2 px per year
-      render();
-      // scroll so the events row for today lands mid-view
-      s.scrollTop = bodyOffset() + day2px(day) - s.clientHeight / 2;
-      updateRange(); moveCrosshair();
-    };
+    $('todayBtn').onclick = () => setZoom('years');
+    $('zoomSel').onchange = () => setZoom($('zoomSel').value);
+
+    // sidebar changes (visibility, add/edit/delete) -> redraw
+    window.addEventListener('cal-visibility', () => { S = Store.load(); render(); });
+    window.addEventListener('cal-changed', () => { S = Store.load(); render(); });
+
     s.addEventListener('scroll', () => { updateRange(); moveCrosshair(); });
     window.addEventListener('keydown', e => {
       if (e.target.matches('input,select,textarea')) return;
@@ -232,18 +245,17 @@
          '-': () => $('zout').click(), '_': () => $('zout').click(),
          'ArrowUp': () => s.scrollBy({ top: -120 }), 'ArrowDown': () => s.scrollBy({ top: 120 }),
          'ArrowLeft': () => s.scrollBy({ left: -120 }), 'ArrowRight': () => s.scrollBy({ left: 120 }),
-         'f': () => $('fit').click(), 'F': () => $('fit').click(),
-         't': () => $('today').click(), 'T': () => $('today').click() }[e.key] || (() => {}))();
+         'f': () => setZoom('fit'), 'F': () => setZoom('fit'),
+         't': () => $('todayBtn').click(), 'T': () => $('todayBtn').click() }[e.key] || (() => {}))();
     });
     $('resetBtn').onclick = () => {
       if (confirm('Reset all dummy data to the original seed?')) { S = Store.reset(); render(); }
     };
     s.addEventListener('pointermove', e => {
       const r = s.getBoundingClientRect();
-      // pointer y -> content y (minus the body offset) -> day
       const day = Math.round(px2day(s.scrollTop + (e.clientY - r.top) - bodyOffset()));
       const ro = $('readout');
-      ro.textContent = S.calendars.map(cal => safeFormatDay(day, cal)).join('   ·   ');
+      ro.textContent = visibleCals().map(cal => safeFormatDay(day, cal)).join('   ·   ');
       ro.classList.add('on');
       const c = $('cross'); if (c) c.style.top = (e.clientY - r.top - bodyOffset()) + 'px';
     });
@@ -255,6 +267,9 @@
     const n = new Date();
     const today = gregorianToDay(n.getFullYear(), n.getMonth() + 1, n.getDate());
     PPD = 2.2 / 365.2425;                   // absolute: ~2.2 px per year
+    $('todayLine').textContent =
+      `${n.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+       · ${visibleCals().length} of ${S.calendars.length} calendars shown`;
     render();
     s.scrollTop = Math.max(bodyOffset() + day2px(today) - s.clientHeight * .35, 0);
     bind();

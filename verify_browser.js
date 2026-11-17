@@ -92,7 +92,7 @@ async function main() {
     // today
     o.rangeBefore = q('#range').textContent.trim();
     o.readoutBefore = q('#readout').textContent;
-    q('#today').click();
+    q('#todayBtn').click();
     o.rangeAfter = q('#range').textContent.trim();
     o.readoutAfter = q('#readout').textContent;
     const cross = q('#cross');
