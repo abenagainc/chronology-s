@@ -1,17 +1,17 @@
-/* Chronology S — dark theme
-   Reference: "Calendar Atlas" screenshot (2026-11-17) — near-black canvas, charcoal
-   panels, off-white type, sage accent, uppercase micro-labels, pill buttons. */
+/* Chronology S — dark theme.
+   Palette SAMPLED from the reference screenshot (2026-11-17), not eyeballed:
+   the reference is green-tinted charcoal, not neutral grey. */
 :root {
-  --bg: #0a0a0a;
-  --panel: #1c1c1e;
-  --panel-2: #232325;
-  --border: #333333;
-  --border-soft: #2a2a2c;
-  --text: #f5f5f7;
-  --muted: #8e8e93;
-  --accent: #d1e7d1;
-  --accent-ink: #1c1c1e;
-  --accent-dim: #a8c5a8;
+  --bg: #181818;          /* outer canvas                      */
+  --panel: #282c28;       /* main panel / sidebar              */
+  --panel-2: #1e211e;     /* inset / hover / header            */
+  --border: #3b403b;      /* dividers                          */
+  --border-soft: #333833; /* faint dividers                    */
+  --text: #edefe8;        /* off-white, slightly warm          */
+  --muted: #a5aaa0;       /* secondary text                    */
+  --accent: #afc8ac;      /* sage                               */
+  --accent-ink: #1e211e;
+  --accent-dim: #8fa88f;
   --radius: 24px;
   --radius-sm: 8px;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", Roboto, sans-serif;
@@ -32,7 +32,7 @@ h2 { font-size: .95rem; margin: 0; }
           border: 1px solid var(--border-soft); border-radius: var(--radius) var(--radius) 0 0;
           padding: 16px 20px; min-height: 60px; }
 .brand { display: flex; align-items: center; gap: 10px; }
-.brand .mark { width: 32px; height: 32px; border-radius: 50%; background: #2c2c2e;
+.brand .mark { width: 32px; height: 32px; border-radius: 50%; background: #343833;
                display: grid; place-items: center; flex: 0 0 auto; }
 .brand .mark svg { width: 17px; height: 17px; stroke: var(--muted); }
 .brand .name { font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
@@ -140,7 +140,7 @@ h2 { font-size: .95rem; margin: 0; }
 
 .ev { position: absolute; border: none; border-radius: var(--radius-sm); padding: 5px 10px;
       font-size: 13px; line-height: 1.25; color: #fff; overflow: hidden; cursor: default;
-      white-space: nowrap; text-overflow: ellipsis; }
+      white-space: nowrap; text-overflow: ellipsis; background: #364038; }
 .ev .yr { display: block; font-family: var(--mono); font-size: 10px; opacity: .75; }
 .ev.point { height: auto; }
 .ev.span { opacity: .85; }

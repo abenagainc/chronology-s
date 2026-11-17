@@ -131,8 +131,7 @@
           if (d1 === null) continue;
           const el = document.createElement('div');
           el.className = 'ev ' + (e.kind === 'span' ? 'span' : 'point');
-          el.style.borderColor = cal.color;
-          el.style.borderLeft = '3px solid ' + cal.color;
+          el.style.background = '#364038';
           el.style.top = day2px(d1) + 'px';
           if (e.kind === 'span' && d2 !== null)
             el.style.height = Math.max(day2px(d2) - day2px(d1), EVLH) + 'px';

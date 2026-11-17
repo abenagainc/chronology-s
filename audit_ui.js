@@ -82,7 +82,7 @@ async function main() {
     const root = cs(document.documentElement);
     const toks = {};
     for (const k of ['--bg','--panel','--text','--muted','--accent']) toks[k] = root.getPropertyValue(k).trim();
-    if (toks['--bg'] !== '#0a0a0a') issues.push('token --bg=' + toks['--bg']);
+    const want = {'--bg':'#181818','--panel':'#282c28','--text':'#edefe8','--muted':'#a5aaa0','--accent':'#afc8ac'}; for (const [k,v] of Object.entries(want)) if (toks[k] !== v) issues.push('token '+k+'='+toks[k]+' want '+v);
 
     // 7. events visible
     const evs = qa('.ev');
