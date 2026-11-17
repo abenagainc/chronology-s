@@ -145,11 +145,11 @@
       frag.appendChild(col);
     }
     inner.appendChild(frag);
-    // the crosshair lives in a column body, which render() just destroyed — re-add
+    // The crosshair spans EVERY column, so it lives in #vt-inner (which is as wide
+    // as all the columns together) — not inside one column's body.
     const cross = document.createElement('div');
     cross.className = 'cross'; cross.id = 'cross';
-    const body = inner.querySelector('.col-body');
-    if (body) body.appendChild(cross);
+    inner.appendChild(cross);
 
     renderLegend();
     updateRange();

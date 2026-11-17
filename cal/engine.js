@@ -50,7 +50,10 @@ function isLeapYear(y, cal) {
   }
   if (r.kind === 'custom') {
     const cyc = r.cycle || 30;
-    const pos = ((y % cyc) + cyc) % cyc + 1;              // year 1 → position 1
+    // Cycle position: year 1 is position 1, year 30 is position 30, year 31 is
+    // position 1 again. `((y-1) % cyc) + 1` gives that; `(y % cyc) + 1` is
+    // off by one and marks year 1 as leap.
+    const pos = ((y - 1) % cyc + cyc) % cyc + 1;
     return (r.years || []).includes(pos);
   }
   return false;
@@ -64,7 +67,14 @@ function daysInYear(y, cal) {
 function daysInMonth(y, mIdx, cal) {
   const m = cal.months[mIdx];
   if (!m) return 0;
-  for (const lm of (cal.leapMonths || [])) if (lm.afterMonth === mIdx && isLeapYear(y, cal)) return lm.days;
+  // `afterMonth` is the 0-based index of the month the leap day extends.
+  for (const lm of (cal.leapMonths || [])) {
+    if (lm.afterMonth === mIdx && isLeapYear(y, cal)) {
+      // extend THIS month rather than replacing it: the month keeps its own
+      // length and gains the leap day
+      return m.days + lm.days;
+    }
+  }
   return m.days;
 }
 /** days from the calendar's epoch to y/m/d (may be negative). */

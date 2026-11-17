@@ -158,7 +158,7 @@ input[type="radio"] { width: auto; }
   font-size: .68rem; line-height: 1.2; background: #fff; overflow: hidden; cursor: default; white-space: nowrap; }
 .ev.point { height: auto; }
 .ev .yr { font-family: var(--mono); font-size: .6rem; color: var(--muted); }
-.cross { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--accent); z-index: 4;
+.cross { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--accent); z-index: 9;
   pointer-events: none; }
 .readout { position: fixed; bottom: .7rem; left: 50%; transform: translateX(-50%); z-index: 20;
   background: #1f2937ee; color: #fff; font-family: var(--mono); font-size: .72rem;

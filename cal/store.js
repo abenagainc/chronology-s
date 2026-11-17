@@ -38,6 +38,20 @@ const Store = (() => {
     // deep copy: the store owns its data, registration works on copies
     s = JSON.parse(JSON.stringify(s));
     registerCalendars(s.calendars);
+    // Drop calendars whose epoch cannot resolve. These only arise from data
+    // written before the save guard existed; they render as blank columns with
+    // an "epoch unresolved" warning, which reads as a broken calendar rather
+    // than a corrupt row.
+    const before = s.calendars.length;
+    s.calendars = s.calendars.filter(c => {
+      const live = BY_ID[c.id];
+      return live && Number.isFinite(live.epochDay) && Array.isArray(live.months) && live.months.length > 0;
+    });
+    if (s.calendars.length !== before) {
+      console.warn(`store: dropped ${before - s.calendars.length} calendar(s) with an unresolvable epoch`);
+      save(s);
+    }
+    registerCalendars(s.calendars);
     return s;
   }
   function save(s) { localStorage.setItem(KEY, JSON.stringify(s)); }
