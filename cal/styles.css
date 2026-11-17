@@ -142,9 +142,15 @@ input[type="radio"] { width: auto; }
 .ruler-lab { position: absolute; left: .35rem; transform: translateY(-50%);
   font-family: var(--mono); font-size: .64rem; color: var(--muted); white-space: nowrap; }
 .col { position: relative; border-right: 1px solid var(--border); flex: 0 0 auto; }
+/* Fixed height, NOT min-height: a wrapping column name (e.g. "Proleptic Hijri
+   (tabular)") would otherwise stretch one header and break ruler/column
+   alignment by exactly the extra line. */
 .col-head { position: sticky; top: 0; z-index: 6; background: #fafafbee; padding: .4rem .5rem;
-  border-bottom: 1px solid var(--border); font-size: .74rem; font-weight: 600; min-height: 2.9rem; }
-.col-head .sub { display: block; font-weight: 400; font-size: .64rem; color: var(--muted); font-family: var(--mono); }
+  border-bottom: 1px solid var(--border); font-size: .74rem; font-weight: 600;
+  height: 2.9rem; overflow: hidden; display: flex; flex-direction: column;
+  justify-content: flex-start; }
+.col-head .sub { display: block; font-weight: 400; font-size: .64rem; color: var(--muted);
+  font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .col-head .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: .3rem; }
 .col-body { position: relative; }
 .mark { position: absolute; left: 3px; right: 3px; border-radius: 3px; opacity: .5; }
@@ -158,8 +164,10 @@ input[type="radio"] { width: auto; }
   font-size: .68rem; line-height: 1.2; background: #fff; overflow: hidden; cursor: default; white-space: nowrap; }
 .ev.point { height: auto; }
 .ev .yr { font-family: var(--mono); font-size: .6rem; color: var(--muted); }
-.cross { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--accent); z-index: 9;
-  pointer-events: none; }
+.cross { position: absolute; top: 0; border-top: 1px dashed var(--accent); z-index: 9;
+  pointer-events: none;
+  /* span every column even though it lives inside the first column's body */
+  width: 9999px; max-width: none; left: 0; right: auto; }
 .readout { position: fixed; bottom: .7rem; left: 50%; transform: translateX(-50%); z-index: 20;
   background: #1f2937ee; color: #fff; font-family: var(--mono); font-size: .72rem;
   padding: .3rem .7rem; border-radius: 99px; pointer-events: none; opacity: 0; transition: opacity .12s; }

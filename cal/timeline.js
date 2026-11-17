@@ -145,11 +145,14 @@
       frag.appendChild(col);
     }
     inner.appendChild(frag);
-    // The crosshair spans EVERY column, so it lives in #vt-inner (which is as wide
-    // as all the columns together) — not inside one column's body.
+    // The crosshair must live in a COLUMN BODY, not in #vt-inner: events are
+    // positioned inside .col-body, which starts bodyOffset() (one header height)
+    // below the scroll-content origin. In #vt-inner it drew one header-height
+    // above the events it was meant to cross.
     const cross = document.createElement('div');
     cross.className = 'cross'; cross.id = 'cross';
-    inner.appendChild(cross);
+    const firstBody = inner.querySelector('.col-body');
+    if (firstBody) firstBody.appendChild(cross);
 
     renderLegend();
     updateRange();

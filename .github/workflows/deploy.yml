@@ -20,6 +20,13 @@ on:
 permissions:
   contents: write
 
+# The built-in GITHUB_TOKEN can only push to THIS repo. Pushing into
+# abenagainc/chronology needs a PAT with repo scope, stored as GH_DEPLOY_TOKEN
+# (the same secret the chronology-x workflow uses). Fall back to GITHUB_TOKEN
+# so a missing secret fails loudly rather than silently pushing nowhere.
+env:
+  GH_TOKEN: ${{ secrets.GH_DEPLOY_TOKEN || secrets.GITHUB_TOKEN }}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
