@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chronology X — Calendars</title>
+<link rel="stylesheet" href="cal/styles.css">
+<style>
+  .tl-head { display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap; }
+  .tl-head p { color: var(--muted); font-size: .78rem; margin: 0; max-width: 60rem; }
+  .col-head .tag { display: inline-block; font-size: .6rem; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 99px; padding: 0 .35rem; margin-left: .3rem;
+    font-weight: 400; vertical-align: middle; }
+  .ev .ttl { display: block; }
+  .legend { display: flex; gap: .9rem; font-size: .7rem; color: var(--muted); margin: .3rem 0 .5rem; flex-wrap: wrap; }
+  .legend .k { display: inline-flex; align-items: center; gap: .25rem; }
+  .legend .sw { width: 9px; height: 9px; border-radius: 2px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="logo">◆</span>
+    <span class="name">Chronology X</span>
+    <span class="sub">calendars · anchored on the day</span>
+  </div>
+  <nav class="tabs">
+    <a class="on" href="index.html">Timeline</a>
+    <a href="calendars.html">Calendars</a>
+    <a href="events.html">Events</a>
+  </nav>
+  <div class="spacer"></div>
+  <span class="chip">dummy data</span>
+  <button class="btn ghost" id="resetBtn" title="Restore the original dummy data">reset</button>
+</header>
+
+<div class="page">
+  <div class="tl-head">
+    <h1>Calendars, side by side</h1>
+    <p>Time runs <b>top → bottom</b>. Each column is a calendar with its own numbering;
+       all of them share one <b>day</b> scale, so a horizontal line is the same day everywhere.
+       The slim ruler on the left is generated from that same day scale — labels only, not a
+       calendar. Scroll, zoom or pan — everything moves together.</p>
+  </div>
+
+  <div class="tl-nav">
+    <button class="btn sm" id="zin">＋ zoom in</button>
+    <button class="btn sm" id="zout">－ zoom out</button>
+    <span class="sep" style="width:1px;height:1rem;background:var(--border)"></span>
+    <button class="btn sm" id="up">↑ earlier</button>
+    <button class="btn sm" id="down">↓ later</button>
+    <span class="sep" style="width:1px;height:1rem;background:var(--border)"></span>
+    <button class="btn sm" id="left">← calendars</button>
+    <button class="btn sm" id="right">→ calendars</button>
+    <span class="sep" style="width:1px;height:1rem;background:var(--border)"></span>
+    <button class="btn sm" id="fit">⤢ fit all</button>
+    <button class="btn sm" id="today">⊙ today</button>
+    <span class="range" id="range">—</span>
+  </div>
+
+  <div class="legend">
+    <span class="k"><i class="sw" style="background:#e5e7eb"></i>year mark</span>
+    <span class="k"><i class="sw" style="background:#d7dae0"></i>decade mark</span>
+    <span class="k"><i class="sw" style="background:#4f7cdf"></i>today / crosshair</span>
+    <span class="k" id="legendCals"></span>
+  </div>
+
+  <div id="vt-scroll"><div id="vt-inner"></div></div>
+</div>
+
+<div class="readout" id="readout"></div>
+
+<script src="cal/engine.js?cb=7"></script>
+<script src="cal/store.js?cb=7"></script>
+<script src="cal/timeline.js?cb=7"></script>
+</body>
+</html>

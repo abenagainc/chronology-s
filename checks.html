@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Chronology X — engine checks</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", sans-serif; margin: 0; padding: 1.2rem;
+         background: #fafafa; color: #1a1a1a; }
+  h1 { font-size: 1.1rem; }
+  table { border-collapse: collapse; font-size: .8rem; margin-top: .6rem; }
+  td, th { border: 1px solid #ddd; padding: .28rem .5rem; text-align: left; }
+  th { background: #f0f0f0; }
+  .ok { color: #15803d; } .bad { color: #b91c1c; font-weight: 600; }
+  .note { color: #555; font-size: .8rem; max-width: 62rem; }
+  code { background: #f0f0f0; padding: .05rem .3rem; border-radius: 3px; }
+</style>
+</head>
+<body>
+<h1>Calendar engine — known-answer checks</h1>
+<p class="note">These run the same code the UI uses (<code>cal/engine.js</code>). If a row fails, the
+conversion is wrong — not the display.</p>
+<table>
+  <thead><tr><th>#</th><th>check</th><th>expected</th><th>actual</th><th></th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+<p class="note" id="sum"></p>
+
+<script src="cal/engine.js"></script>
+<script>
+const rows = [];
+function chk(name, expected, actual) {
+  const pass = JSON.stringify(expected) === JSON.stringify(actual);
+  rows.push({ name, expected, actual, pass });
+}
+
+// --- anchor -------------------------------------------------------------
+chk('anchor: 2026-10-01 Gregorian → offset', 0, gregorianToOffset(2026, 10, 1));
+chk('anchor: offset 0 → Gregorian', [2026, 10, 1], offsetToGregorian(0));
+
+// --- published JDN pairs (independent of our anchor) --------------------
+// 2000-01-01 Gregorian = JDN 2451545 → offset = 2451545 - 2461300
+chk('2000-01-01 Gregorian', 2451545 - 2461300, gregorianToOffset(2000, 1, 1));
+chk('1987-01-27 Gregorian', 2446823 - 2461300, gregorianToOffset(1987, 1, 27));
+chk('1582-10-15 Gregorian (first Gregorian day)', 2299161 - 2461300, gregorianToOffset(1582, 10, 15));
+chk('1582-10-04 Julian (last Julian day)', 2299160 - 2461300, julianToOffset(1582, 10, 4));
+chk('roundtrip 1582-10-15 Gregorian', [1582, 10, 15], offsetToGregorian(gregorianToOffset(1582, 10, 15)));
+chk('roundtrip 1582-10-04 Julian', [1582, 10, 4], offsetToJulian(julianToOffset(1582, 10, 4)));
+
+// --- Gregorian leap behaviour ------------------------------------------
+chk('2000 is Gregorian leap', true, isLeapYear(2000, gregorianCal()));
+chk('1900 is NOT Gregorian leap', false, isLeapYear(1900, gregorianCal()));
+chk('2024 is Gregorian leap', true, isLeapYear(2024, gregorianCal()));
+chk('1900 IS Julian leap', true, isLeapYear(1900, julianCal()));
+
+// --- rule-driven engine vs the direct formulas --------------------------
+const G = finalize(gregorianCal(), () => null);
+const J = finalize(julianCal(), () => null);
+for (const [y, m, d] of [[2026,10,1],[1582,10,15],[1900,3,1],[4,2,29],[-44,3,15],[-5000,1,1]]) {
+  chk(`engine Gregorian ${y}-${m}-${d}`, gregorianToOffset(y, m, d), dateToOffset(y, m, d, G));
+  chk(`engine Gregorian back ${y}-${m}-${d}`, [y, m, d], (o => { const r = offsetToDate(o, G); return [r.y, r.m, r.d]; })(dateToOffset(y, m, d, G)));
+}
+for (const [y, m, d] of [[1582,10,4],[1900,2,29],[622,7,16]]) {
+  chk(`engine Julian ${y}-${m}-${d}`, julianToOffset(y, m, d), dateToOffset(y, m, d, J));
+}
+chk('engine Julian 1582-10-04', julianToOffset(1582,10,4), dateToOffset(1582, 10, 4, J));
+
+// --- Hijri: epoch and published pairs ----------------------------------
+const H = finalize(hijriCal(), () => null);
+chk('Hijri epoch AH1/1/1 = Julian 622-07-16', julianToOffset(622, 7, 16), H.epochOffset);
+chk('Hijri epoch offset is stable', -200315, H.epochOffset);
+chk('Hijri AH1/1/1 round trip', { y: 1, m: 1, d: 1 }, (() => { const r = offsetToDate(H.epochOffset, H); return { y: r.y, m: r.m, d: r.d }; })());
+// 1 Muharram 1446 AH = 7 July 2024 CE (Gregorian) — published civil-calendar value
+chk('1 Muharram 1446 AH → Gregorian', [2024, 7, 7], (() => {
+  const r = offsetToDate(dateToOffset(1446, 1, 1, H), G); return [r.y, r.m, r.d]; })());
+// Hijri year length: 354 common, 355 leap
+chk('AH 1445 length (common)', 354, daysInYear(1445, H));
+chk('AH 1446 length (leap)', 355, daysInYear(1446, H));
+// Hijri date for "today" should be a sane AH year
+const t = offsetToDate(0, H);
+chk('Hijri year at the anchor is 1448', true, t.y >= 1447 && t.y <= 1448);
+
+// --- formatting ---------------------------------------------------------
+chk('format Hijri', '01/01/0001', formatDate(1, 1, 1, H));
+chk('format Gregorian', '1582-10-15', formatDate(1582, 10, 15, G));
+chk('format BCE', '753-04-21 BCE', formatDate(-752, 4, 21, G));  // astronomical -752 = 753 BCE
+
+// --- custom calendar round trip ----------------------------------------
+const C = finalize(presetCal('egyptian'), id => ({ julian: J, gregorian: G }[id]));
+const cOff = dateToOffset(100, 13, 5, C);
+chk('Egyptian 100/13/5 round trip', [100, 13, 5], (() => { const r = offsetToDate(cOff, C); return [r.y, r.m, r.d]; })());
+chk('Egyptian 13th month exists only 5 days', 5, daysInMonth(100, 12, C));
+
+const tb = document.getElementById('rows');
+let nOk = 0;
+for (const r of rows) {
+  if (r.pass) nOk++;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${r.pass ? '✓' : '✗'}</td><td>${r.name}</td>
+    <td><code>${JSON.stringify(r.expected)}</code></td>
+    <td><code>${JSON.stringify(r.actual)}</code></td>
+    <td class="${r.pass ? 'ok' : 'bad'}">${r.pass ? 'pass' : 'FAIL'}</td>`;
+  tb.appendChild(tr);
+}
+document.getElementById('sum').innerHTML =
+  `<b>${nOk}/${rows.length}</b> checks pass.` + (nOk === rows.length ? '' : ' — something is wrong.');
+</script>
+</body>
+</html>
