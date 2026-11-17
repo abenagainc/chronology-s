@@ -1,0 +1,48 @@
+name: Deploy Chronology S
+
+# Publishes the static UI to the s/ subtree of the site that owns
+# chronology.abenaga.com (repo: abenagainc/chronology, branch: gh-pages).
+# The site root is a hub linking both tools, and x/ belongs to Chronology X —
+# this job must replace ONLY s/, never the whole repo.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'calendars.html'
+      - 'events.html'
+      - 'checks.html'
+      - 'cal/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stage the Chronology S section into site/s/
+        run: |
+          mkdir -p site/s
+          cp index.html calendars.html events.html checks.html site/s/
+          cp -r cal site/s/cal
+      - name: Push to the site repo (gh-pages)
+        env:
+          GH_TOKEN: ${{ secrets.GH_DEPLOY_TOKEN }}
+        run: |
+          git config --global user.name "chronology-s bot"
+          git config --global user.email "abenagainc@users.noreply.github.com"
+          rm -rf site-push
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/abenagainc/chronology.git" site-push --depth=1
+          cd site-push
+          git checkout -B gh-pages
+          # replace ONLY the s/ subtree — the hub index and x/ stay intact
+          rm -rf s
+          cp -r ../site/s ./s
+          git add -A
+          git commit -m "deploy S: ${GITHUB_SHA:0:7}" || true
+          git push "https://x-access-token:${GH_TOKEN}@github.com/abenagainc/chronology.git" gh-pages
