@@ -1,4 +1,4 @@
-/* Chronology X — date math for the UI prototype.
+/* Chronology S — date math for the UI prototype.
    The DAY is the only unit shared between calendars.
    Axis: absolute integer day, 0 = the fixed anchor (1 Oct 2026 Gregorian).
    Custom calendars are anchored to another calendar's date (epochCal), so no

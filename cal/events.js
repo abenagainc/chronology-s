@@ -1,4 +1,4 @@
-/* Chronology X — event CRUD. An event lives in ONE calendar; the UI shows the
+/* Chronology S — event CRUD. An event lives in ONE calendar; the UI shows the
    equivalent day in every other calendar. */
 (() => {
   let S = Store.load();

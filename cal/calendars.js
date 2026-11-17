@@ -1,4 +1,4 @@
-/* Chronology X — calendar CRUD + rule editor */
+/* Chronology S — calendar CRUD + rule editor */
 (() => {
   let S = Store.load();
   let editing = null;          // calendar being edited

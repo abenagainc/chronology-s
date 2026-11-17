@@ -1,4 +1,4 @@
-/* Chronology X — dummy-data store (localStorage). One seam: swap for the DB later. */
+/* Chronology S — dummy-data store (localStorage). One seam: swap for the DB later. */
 const Store = (() => {
   const KEY = 'chronologyX.v1';
   const uid = () => 'id-' + Math.random().toString(36).slice(2, 10);

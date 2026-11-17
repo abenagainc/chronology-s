@@ -1,4 +1,4 @@
-# Chronology Tool S
+# Chronology S
 
 A visual tool for viewing **multiple calendars side by side on one shared day scale**,
 running in the browser. Prototype phase: dummy data in `localStorage`, no backend.

@@ -1,4 +1,4 @@
-/* Chronology X — vertical multi-calendar timeline.
+/* Chronology S — vertical multi-calendar timeline.
    ONE shared scale: the DAY.
    - A slim sticky YEAR RULER is pinned to the left edge (labels only, not a
      data column). It is generated from the same day->pixel map as the columns,
