@@ -248,8 +248,15 @@ h2 { font-size: .95rem; margin: 0; }
 .mark.year     { height: 2px; background: var(--border); opacity: .85; }
 .mark.month    { height: 1px; background: #333833; opacity: .6; }
 .mark.day      { height: 1px; background: #2c2f2c; opacity: .45; }
-.mark.lab { font-family: var(--mono); font-size: var(--label-px, 10px); color: var(--muted); background: none;
-            transform: translateY(-50%); padding-left: 8px; height: auto; opacity: 1; }
+/* labels sit in the TOP-LEFT corner of the block the tick starts, not centred
+   on the line — so a year label heads the year band, a month label the month.
+   The ruler's own labels use the same anchoring so the two stay aligned. */
+.mark.lab { font-family: var(--mono); font-size: var(--label-px, 10px); color: var(--text);
+            background: none; height: auto; opacity: 1; border: none;
+            transform: none; padding: 0 0 0 3px; left: 2px; right: auto;
+            text-align: left; white-space: nowrap; }
+/* the ruler's labels share the column anchoring (top-left of the tick) */
+.ruler-lab { transform: none; left: 3px; }
 
 .ev { position: absolute; border: none; border-radius: var(--radius-sm); padding: 5px 10px;
       font-size: 13px; line-height: 1.25; color: #fff; overflow: hidden; cursor: default;

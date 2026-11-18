@@ -83,16 +83,33 @@
        < thDecade              → decades
        < thCentury             → centuries
        otherwise               → millennia                                        */
-  const TH = { day: 2, month: 10, year: 150, decade: 1500, century: 10000 };
+  /* TICK THRESHOLDS (px per unit) — Abe's model:
+       px < 5   → hide that tier
+       5 ≤ px < 30 → ticks, no labels
+       px ≥ 30  → ticks + labels
+     Every tier is judged independently, and LABELS NEST: the coarsest tier that
+     qualifies labels a position; finer tiers supply ticks. So a label is always
+     exactly one of day / month / year, at a real boundary, in the corner of its
+     block. */
+  let TICK_MIN_PX = 5;
+  let LABEL_MIN_PX = 30;
 
-  function pickTier() {
-    const spanYears = DAYS_TOTAL / PPD / 365.2425;
-    if (spanYears < TH.day) return 'day';
-    if (spanYears < TH.month) return 'month';
-    if (spanYears < TH.year) return 'year';
-    if (spanYears < TH.decade) return 'decade';
-    if (spanYears < TH.century) return 'century';
-    return 'millennium';
+  /* Approximate unit lengths in days, for the px-per-unit test. */
+  const UNIT_DAYS = { day: 1, month: 30.4375, year: 365.2425,
+                      decade: 3652.425, century: 36524.25, millennium: 365242.5 };
+  const TIER_ORDER = ['day', 'month', 'year', 'decade', 'century', 'millennium'];
+
+  /* Which tiers are visible at the current zoom, and which of those label. */
+  function tierState() {
+    const out = {};
+    for (const t of TIER_ORDER) out[t] = { px: UNIT_DAYS[t] * PPD, show: false, label: false };
+    for (const t of TIER_ORDER) {
+      const px = out[t].px;
+      if (px < TICK_MIN_PX) continue;
+      out[t].show = true;
+      if (px >= LABEL_MIN_PX) out[t].label = true;
+    }
+    return out;
   }
 
   /* Label for a tick at a given tier. */
@@ -123,58 +140,62 @@
 
   function builtinMarks(cal) {
     const out = [];
-    const tier = pickTier();
-    const density = TICK_DENSITY;          // user multiplier on minor ticks
+    const st = tierState();
     const show = SHOW_LABELS;
-    const every = LABEL_EVERY;             // label every Nth major tick
+    const density = TICK_DENSITY;
 
-    if (tier === 'day') {
-      // individual days: step in whole days, subdivided by density
+    /* Only generate marks for the VISIBLE window (+ margin). Looping the whole
+       7000-year range produced ~2.5M marks and hung the page.
+       `lo`/`hi` are DAY INDICES (0 = 1 Oct 2026), NOT years — they must be
+       converted to calendar dates before being used as a year bound. */
+    const s = sc();
+    const margin = 400;
+    const lo = px2day(s.scrollTop - margin - bodyOffset());
+    const hi = px2day(s.scrollTop + (s.clientHeight || 600) + margin - bodyOffset());
+    const inView = (day) => day >= lo && day <= hi;
+    const loY = Math.min(dayToDate(lo, cal).y, dayToDate(hi, cal).y);
+    const hiY = Math.max(dayToDate(lo, cal).y, dayToDate(hi, cal).y);
+
+    /* --- DAY ticks --- */
+    if (st.day.show) {
       const step = Math.max(1, Math.round(1 / density));
+      const everyDay = Math.max(1, Math.round(7 / density));   // label every Nth day
       let i = 0;
-      for (let d = Math.ceil(MINY_D / step) * step; d <= MAXY_D; d += step, i++) {
-        const major = (i % Math.max(1, Math.round(7 / density))) === 0;
-        out.push({ px: day2px(d), label: major && show ? tierLabel(d, cal, 'day') : '',
-                  major, tier });
+      for (let d = Math.ceil(lo / step) * step; d <= hi; d += step, i++) {
+        out.push({ px: day2px(d), tier: 'day', major: false,
+                   label: (show && st.day.label && i % everyDay === 0) ? tierLabel(d, cal, 'day') : '' });
       }
-      return out;
     }
 
-    if (tier === 'month') {
-      // walk month starts in THIS calendar
+    /* --- MONTH ticks, at real month boundaries --- */
+    if (st.month.show) {
+      const everyM = Math.max(1, Math.round(12 / density));
       let i = 0;
-      for (let y = MINY; y <= MAXY; y++) {
+      for (let y = loY - 1; y <= hiY + 1; y++) {
         for (let m = 1; m <= cal.months.length; m++) {
           const day = dateToDay(y, m, 1, cal);
-          if (day < MINY_D || day > MAXY_D) continue;
-          const major = (i % Math.max(1, Math.round(6 / density))) === 0;
-          out.push({ px: day2px(day),
-                    label: major && show && (i % every) === 0 ? tierLabel(day, cal, 'month') : '',
-                    major, tier });
+          if (!inView(day)) continue;
+          out.push({ px: day2px(day), tier: 'month', major: false,
+                     label: (show && st.month.label && i % everyM === 0) ? tierLabel(day, cal, 'month') : '' });
           i++;
         }
       }
-      return out;
     }
 
-    // year-granular tiers
-    const span = tier === 'millennium' ? 1000 : tier === 'century' ? 100 : tier === 'decade' ? 10 : 1;
-    const sub = Math.max(1, Math.round(span / (span === 1 ? 1 : density)));
-    let i = 0;
-    const start = Math.ceil(MINY / span) * span;
-    for (let y = start; y <= MAXY; y += span, i++) {
-      const isMajor = span === 1 ? true : (i % Math.max(1, Math.round(1 / density))) === 0;
-      const day = dateToDay(y, 1, 1, cal);
-      const labelled = isMajor && (i % every) === 0;
-      out.push({ px: day2px(day), label: labelled && show ? tierLabel(day, cal, tier) : '',
-                major: isMajor, tier });
-      // minor subdivisions for coarse tiers
-      if (span > 1 && density > 1) {
-        for (let k = 1; k < density; k++) {
-          const yy = y + Math.round(span / density) * k;
-          if (yy > MAXY) break;
-          out.push({ px: day2px(dateToDay(yy, 1, 1, cal)), label: '', major: false, tier });
-        }
+    /* --- YEAR and coarser ticks --- */
+    const spans = { year: 1, decade: 10, century: 100, millennium: 1000 };
+    for (const tier of ['year', 'decade', 'century', 'millennium']) {
+      if (!st[tier].show) continue;
+      const span = spans[tier];
+      const everyN = Math.max(1, Math.round(span / density));
+      let i = 0;
+      const yStart = Math.max(MINY, loY - span);
+      const yEnd = Math.min(MAXY, hiY + span);
+      const start = Math.ceil(yStart / span) * span;
+      for (let y = start; y <= yEnd; y += span, i++) {
+        const day = dateToDay(y, 1, 1, cal);
+        out.push({ px: day2px(day), tier, major: false,
+                   label: (show && st[tier].label && i % everyN === 0) ? tierLabel(day, cal, tier) : '' });
       }
     }
     return out;
@@ -248,9 +269,11 @@
           el.className = 'mark ' + (m.tier || (m.major ? 'year' : 'dec'));
           el.style.top = m.px + 'px';
           body.appendChild(el);
-          if (m.major) {
+          // a label is emitted where the mark carries one — `major` is no longer
+          // the gate (every tier can label now).
+          if (m.label) {
             const lab = document.createElement('div');
-            lab.className = 'mark lab';
+            lab.className = 'mark lab ' + (m.tier || '');
             lab.style.top = m.px + 'px';
             lab.textContent = m.label;
             body.appendChild(lab);
@@ -408,20 +431,20 @@
     updateRange(); placeCrosshair(s.scrollTop + s.clientHeight / 2);
   }
 
+  /* Presets are defined in PIXELS PER UNIT at exactly LABEL_MIN_PX (30): each
+     preset is the zoom where that unit just starts labelling. "fit" fits all. */
   function setZoom(preset) {
     const s = sc();
     const n = new Date();
     const today = gregorianToDay(n.getFullYear(), n.getMonth() + 1, n.getDate());
-    const spans = {
-      fit: DAYS_TOTAL,
-      millennia: 365.2425 * 3000,
-      centuries: 365.2425 * 500,
-      years: 365.2425 * 400,
-      months: 365.2425 * 30,
-      days: 90,
-    };
-    const days = spans[preset] || spans.years;
-    PPD = Math.min(Math.max((s.clientHeight - 60) / days, 0.0008), 40);
+    if (preset === 'fit') {
+      PPD = Math.max((s.clientHeight - 60) / DAYS_TOTAL, 0.0008);
+    } else {
+      const unitDays = { days: 1, months: 30.4375, years: 365.2425,
+                         decades: 3652.425, centuries: 36524.25, millennia: 365242.5 }[preset];
+      PPD = (unitDays ? LABEL_MIN_PX / unitDays : 0.002);
+    }
+    PPD = Math.min(Math.max(PPD, 0.0008), 40);
     render();
     if (preset !== 'fit') {
       s.scrollTop = bodyOffset() + day2px(today) - s.clientHeight / 2;
@@ -458,19 +481,21 @@
       $('labelEvery').oninput = (e) => { LABEL_EVERY = +e.target.value; render(); };
       $('labelSize').onchange = (e) => { LABEL_SIZE = +e.target.value; applyLabelSize(); render(); };
       $('showLabels').onchange = (e) => { SHOW_LABELS = e.target.checked; render(); };
-      const th = [['thDay', 'day'], ['thMonth', 'month'], ['thYear', 'year'],
-                  ['thDecade', 'decade'], ['thCentury', 'century']];
-      th.forEach(([id, key]) => {
-        const el = $(id);
-        if (el) el.onchange = (e) => {
-          TH[key] = Math.max(0.01, +e.target.value || TH[key]);
-          updateTierActive(); render();
-        };
-      });
+      const thT = $('thTick'), thL = $('thLabel');
+      if (thT) thT.onchange = (e) => {
+        TICK_MIN_PX = Math.max(1, +thT.value || 5); updateTierActive(); render();
+      };
+      if (thL) thL.onchange = (e) => {
+        LABEL_MIN_PX = Math.max(1, +thL.value || 30); updateTierActive(); render();
+      };
     }
     function updateTierActive() {
       const el = $('tierActive');
-      if (el) el.textContent = `now: ${pickTier()} ticks`;
+      if (!el) return;
+      const st = tierState();
+      const txt = TIER_ORDER.filter(t => st[t].show)
+        .map(t => `${t} ${st[t].label ? 'labelled' : 'ticks'}`).join(' · ');
+      el.textContent = txt ? `now: ${txt}` : 'now: nothing visible';
     }
     /* --- ruler reference selector (delegated: render() rebuilds the ruler) --- */
     const inner0 = $('vt-inner');
@@ -524,7 +549,10 @@
     const s = sc();
     const n = new Date();
     const today = gregorianToDay(n.getFullYear(), n.getMonth() + 1, n.getDate());
-    PPD = 2.2 / 365.2425;                   // absolute: ~2.2 px per year
+    // default = the "30 px / year" preset, i.e. years just start labelling.
+    // 30px / 365.2425d lands at 29.98px for a 365-day year — a hair under the
+    // label threshold — so aim slightly above it.
+    PPD = (LABEL_MIN_PX + 1) / 365.2425;
     render();
     s.scrollTop = Math.max(bodyOffset() + day2px(today) - s.clientHeight * .35, 0);
     bind();
