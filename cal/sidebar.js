@@ -48,9 +48,9 @@
       <span class="t">${esc(c.name)}</span>
       <span class="acts">
         <input type="color" class="swatch" data-a="colour" value="${esc(c.color || '#4f7cdf')}"
-               title="Colour">
+               title="Colour and format">
         ${built
-          ? `<button class="btn ghost fmt" data-a="fmt" title="Date format">${esc(c.format || 'YYYY-MM-DD')}</button>`
+          ? `<button class="btn ghost" data-a="cfmt" title="Colour and format">✎</button>`
           : '<button class="btn ghost" data-a="edit" title="Edit rules">✎</button>'}
         <button class="btn ghost" data-a="dup" title="Duplicate to custom">⧉</button>
         ${built ? '' : '<button class="btn ghost" data-a="del" title="Delete">✕</button>'}
@@ -66,13 +66,10 @@
       Store.updateCalendar(S, c.id, { color: e.target.value });
       refresh(); render();
     };
-    const fmt = el.querySelector('[data-a=fmt]');
-    if (fmt) fmt.onclick = () => {
-      const v = prompt('Date format (tokens: YYYY MM DD)', c.format || 'YYYY-MM-DD');
-      if (v === null) return;
-      Store.updateCalendar(S, c.id, { format: v.trim() || 'YYYY-MM-DD' });
-      refresh(); render();
-    };
+    /* built-in: one small thumbnail button (same size as the custom-calendar
+       edit icon) that opens a popover for colour AND format. */
+    const cfmt = el.querySelector('[data-a=cfmt]');
+    if (cfmt) cfmt.onclick = (e) => openCalPop(e.currentTarget, c);
     const edit = el.querySelector('[data-a=edit]');
     if (edit) edit.onclick = () => CalEditor.open(c);
     el.querySelector('[data-a=dup]').onclick = () => {
@@ -90,6 +87,38 @@
       refresh(); render();
     };
     return el;
+  }
+
+  /** Popover for a built-in's colour + date format. */
+  function openCalPop(anchor, c) {
+    const old = $('calPop');
+    if (old) old.remove();
+    const pop = document.createElement('div');
+    pop.className = 'popover pop-cal';
+    pop.id = 'calPop';
+    const r = anchor.getBoundingClientRect();
+    pop.style.position = 'fixed';
+    pop.style.top = Math.min(r.bottom + 6, window.innerHeight - 150) + 'px';
+    pop.style.left = Math.max(8, Math.min(r.left - 190, window.innerWidth - 230)) + 'px';
+    pop.innerHTML = `
+      <div class="pop-row">
+        <span class="pop-lab">Colour</span>
+        <input type="color" id="cpColor" value="${esc(c.color || '#4f7cdf')}">
+      </div>
+      <div class="pop-row">
+        <span class="pop-lab">Format</span>
+        <input id="cpFmt" type="text" value="${esc(c.format || 'YYYY-MM-DD')}" style="width:110px">
+      </div>
+      <div class="pop-hint">tokens: YYYY&middot;MM&middot;DD — applies to this calendar's labels</div>`;
+    document.body.appendChild(pop);
+    pop.querySelector('#cpColor').oninput = (e) => {
+      Store.updateCalendar(S, c.id, { color: e.target.value });
+      refresh(); render();
+    };
+    pop.querySelector('#cpFmt').onchange = (e) => {
+      Store.updateCalendar(S, c.id, { format: e.target.value.trim() || 'YYYY-MM-DD' });
+      refresh(); render();
+    };
   }
 
   function section(title, list, addLabel, addKind) {
@@ -141,7 +170,13 @@
   document.addEventListener('click', (e) => {
     const pop = $('presetPop');
     if (pop && !e.target.closest('#presetPop') && !e.target.closest('.sec-head .btn')) pop.remove();
+    const cp = $('calPop');
+    if (cp && !e.target.closest('#calPop') && !e.target.closest('[data-a=cfmt]')) cp.remove();
   });
+
+  /* a calendar added/edited/deleted in a drawer must show up here without a reload */
+  window.addEventListener('cal-changed', () => { S = Store.load(); render(); });
+  window.addEventListener('cal-visibility', () => { S = Store.load(); render(); });
 
   render();
 })();

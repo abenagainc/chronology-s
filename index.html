@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chronology S — Calendars</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='4' fill='%23d1e7d1'/></svg>">
-<link rel="stylesheet" href="cal/styles.css?cb=7">
+<link rel="stylesheet" href="cal/styles.css?cb=8">
 </head>
 <body>
 <div class="app">
@@ -31,7 +31,7 @@
   <div class="body">
     <!-- ============ region 2: calendar list (collapsible) ============ -->
     <aside class="side" id="sidePanel">
-      <button class="collapse" id="collapseSide" title="Minimise calendars">‹</button>
+      <div class="dragbar" id="dragSide" title="Drag to resize"></div>
       <div id="calList"></div>
 
       <p class="label">View</p>
@@ -40,11 +40,11 @@
         <div id="viewRange" style="font-family:var(--mono);font-size:11px;margin-top:6px"></div>
       </div>
     </aside>
-    <button class="rail" id="railSide" title="Show calendars" hidden><span>Calendars</span></button>
+    <button class="rail" id="railSide" title="Calendars"><span class="rail-lab">Calendars</span><span class="rail-arrow">‹</span></button>
 
     <!-- ============ region 3: events panel (collapsible) ============ -->
     <section class="evpanel" id="evPanel">
-      <button class="collapse" id="collapseEv" title="Minimise events">›</button>
+      <div class="dragbar" id="dragEv" title="Drag to resize"></div>
       <div class="evpanel-head">
         <select class="select" id="evFilter" title="Filter by calendar">
           <option value="">All events</option>
@@ -52,7 +52,7 @@
       </div>
       <div class="evpanel-body" id="evList"></div>
     </section>
-    <button class="rail" id="railEv" title="Show events"><span>Events</span></button>
+    <button class="rail" id="railEv" title="Events"><span class="rail-lab">Events</span><span class="rail-arrow">›</span></button>
 
     <!-- ============ region 4: right column ============ -->
     <main class="main">

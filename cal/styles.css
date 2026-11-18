@@ -71,19 +71,24 @@ h2 { font-size: .95rem; margin: 0; }
                color: var(--muted); margin: 0 0 14px; font-weight: 600; }
 .side .label:not(:first-child) { margin-top: 26px; }
 
-/* collapsed rail: a thin vertical strip with the label rotated 90° */
-.rail { flex: 0 0 24px; width: 24px; border: none; border-right: 1px solid var(--border);
+/* collapsed rail: a thin vertical strip; the arrow at its top is a real button */
+.rail { flex: 0 0 26px; width: 26px; border: none; border-right: 1px solid var(--border);
         background: var(--panel); color: var(--muted); cursor: pointer; padding: 0;
-        display: flex; align-items: center; justify-content: center; }
+        display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .rail:hover { background: var(--panel-2); color: var(--text); }
-.rail span { writing-mode: vertical-rl; transform: rotate(180deg);
-             font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
-             white-space: nowrap; }
-.side { position: relative; }
-.collapse { position: absolute; top: 8px; right: 6px; z-index: 5; width: 18px; height: 18px;
-           padding: 0; font-size: 12px; line-height: 1; border: none; background: none;
-           color: var(--muted); cursor: pointer; }
-.collapse:hover { color: var(--text); }
+.rail .rail-arrow { flex: 0 0 auto; width: 20px; height: 20px; margin-top: 8px;
+        display: grid; place-items: center; border: 1px solid var(--border);
+        border-radius: 6px; font-size: 12px; line-height: 1; color: var(--muted);
+        background: var(--panel-2); }
+.rail:hover .rail-arrow { color: var(--text); border-color: var(--accent-dim); }
+.rail .rail-lab { writing-mode: vertical-rl; transform: rotate(180deg);
+        font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+        white-space: nowrap; }
+.side, .evpanel { position: relative; }
+/* grab handle on the right edge of regions 2 and 3 */
+.dragbar { position: absolute; top: 0; right: 0; width: 5px; height: 100%; z-index: 6;
+           cursor: col-resize; background: transparent; }
+.dragbar:hover, .dragbar.on { background: var(--accent-dim); opacity: .55; }
 
 /* region 3: events panel */
 .evpanel { width: 260px; flex: 0 0 260px; border-right: 1px solid var(--border);
@@ -133,6 +138,11 @@ h2 { font-size: .95rem; margin: 0; }
 .pop-side { position: fixed; width: 220px; }
 .pop-opt { padding: 7px 10px; font-size: 13px; border-radius: 6px; cursor: pointer; }
 .pop-opt:hover { background: var(--bg); color: var(--text); }
+/* built-in colour + format popover */
+.pop-cal { position: fixed; width: 220px; }
+.pop-cal input[type=color] { width: 34px; height: 24px; padding: 0; }
+.pop-cal input[type=text] { width: 110px; padding: 4px 8px; font-family: var(--mono);
+                            font-size: 11px; }
 
 /* checkbox */
 .cb { width: 16px; height: 16px; border-radius: 4px; border: 1px solid #555;
