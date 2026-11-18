@@ -1,53 +1,83 @@
 /* Chronology S — left sidebar (region 2): the calendar list.
    Two always-present sections — CALENDARS (built-ins) and CUSTOM — each with its
    own add button. Built-ins are immutable: hide, colour and format only; to
-   change the RULES you duplicate into a custom calendar. */
+   change the RULES you duplicate into a custom calendar.
+
+   Visibility state lives in timeline.js (window.calVisible / hiddenIds /
+   setHidden) so the sidebar and the timeline cannot disagree. */
 (() => {
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? '').replace(/[&<>"]/g,
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   let S = Store.load();
+  const refresh = () => { S = Store.load(); window.dispatchEvent(new CustomEvent('cal-visibility')); };
 
-  function hidden() {
-    try { return new Set(JSON.parse(localStorage.getItem('chronologyX.hidden') || '[]')); }
-    catch (e) { return new Set(); }
+  /** Popover listing the built-in presets. */
+  function openPresetPicker(anchor) {
+    let pop = $('presetPop');
+    if (pop) { pop.remove(); return; }              // toggle
+    pop = document.createElement('div');
+    pop.className = 'popover pop-side';
+    pop.id = 'presetPop';
+    pop.style.position = 'fixed';
+    pop.style.top = anchor.getBoundingClientRect().bottom + 6 + 'px';
+    pop.style.left = Math.min(anchor.getBoundingClientRect().left, window.innerWidth - 240) + 'px';
+    pop.innerHTML = PRESETS.filter(p => p.id !== 'blank').map(p =>
+      `<div class="pop-opt" data-p="${p.id}">${esc(p.label)}</div>`).join('');
+    document.body.appendChild(pop);
+    pop.addEventListener('click', (e) => {
+      const o = e.target.closest('.pop-opt');
+      if (!o) return;
+      const p = presetCal(o.dataset.p);
+      p.kind = 'builtin';
+      Store.addCalendar(S, p);
+      refresh(); render();
+      pop.remove();
+    });
   }
-  function saveHidden(set) { localStorage.setItem('chronologyX.hidden', JSON.stringify([...set])); }
-  function refresh() { S = Store.load(); window.dispatchEvent(new CustomEvent('cal-visibility')); }
 
   function item(c) {
-    const isOff = hidden().has(c.id);
+    const isOff = window.hiddenIds().has(c.id);
     const built = c.kind === 'builtin';
     const el = document.createElement('div');
     el.className = 'cal-item' + (isOff ? ' off' : '');
     el.innerHTML = `
       <button class="cb" role="checkbox" aria-checked="${!isOff}"
               title="${isOff ? 'Show on timeline' : 'Hide from timeline'}"></button>
-      <span class="dot" style="background:${esc(c.color)}"></span>
       <span class="t">${esc(c.name)}</span>
       <span class="acts">
-        <button class="btn ghost" data-a="colour" title="Colour">●</button>
-        ${built ? '' : '<button class="btn ghost" data-a="edit" title="Edit rules">✎</button>'}
+        <input type="color" class="swatch" data-a="colour" value="${esc(c.color || '#4f7cdf')}"
+               title="Colour">
+        ${built
+          ? `<button class="btn ghost fmt" data-a="fmt" title="Date format">${esc(c.format || 'YYYY-MM-DD')}</button>`
+          : '<button class="btn ghost" data-a="edit" title="Edit rules">✎</button>'}
         <button class="btn ghost" data-a="dup" title="Duplicate to custom">⧉</button>
         ${built ? '' : '<button class="btn ghost" data-a="del" title="Delete">✕</button>'}
       </span>`;
     el.querySelector('.cb').onclick = () => {
-      const set = hidden();
+      const set = window.hiddenIds();
       if (set.has(c.id)) set.delete(c.id); else set.add(c.id);
-      saveHidden(set); render();
+      window.setHidden(set);
+      render();
+      window.dispatchEvent(new CustomEvent('cal-visibility'));
     };
-    el.querySelector('[data-a=colour]').onclick = () => {
-      const v = prompt('Colour (hex)', c.color || '#4f7cdf');
-      if (!v) return;
-      Store.updateCalendar(S, c.id, { color: v.trim() });
+    el.querySelector('[data-a=colour]').oninput = (e) => {
+      Store.updateCalendar(S, c.id, { color: e.target.value });
+      refresh(); render();
+    };
+    const fmt = el.querySelector('[data-a=fmt]');
+    if (fmt) fmt.onclick = () => {
+      const v = prompt('Date format (tokens: YYYY MM DD)', c.format || 'YYYY-MM-DD');
+      if (v === null) return;
+      Store.updateCalendar(S, c.id, { format: v.trim() || 'YYYY-MM-DD' });
       refresh(); render();
     };
     const edit = el.querySelector('[data-a=edit]');
     if (edit) edit.onclick = () => CalEditor.open(c);
     el.querySelector('[data-a=dup]').onclick = () => {
       const copy = JSON.parse(JSON.stringify(c));
-      copy.kind = 'custom';                       // a copy is yours, not history
+      copy.kind = 'custom';
       copy.name = c.name.replace(/\s*\(copy\)$/i, '') + ' (copy)';
       Store.addCalendar(S, copy);
       refresh(); render();
@@ -68,7 +98,10 @@
     h.className = 'sec-head';
     h.innerHTML = `<span class="label">${esc(title)}</span>
                    <button class="btn ghost sm" title="${esc(addLabel)}">＋</button>`;
-    h.querySelector('button').onclick = () => addKind === 'builtin' ? pickPreset() : CalEditor.open(null);
+    h.querySelector('button').onclick = (e) => {
+      if (addKind === 'builtin') openPresetPicker(e.currentTarget);
+      else CalEditor.open(null);
+    };
     wrap.appendChild(h);
     const box = document.createElement('div');
     box.className = 'sec-list';
@@ -83,20 +116,6 @@
     return wrap;
   }
 
-  /** Preset picker for a built-in. */
-  function pickPreset() {
-    const opts = PRESETS.filter(p => p.id !== 'blank');
-    const names = opts.map((p, i) => `${i + 1}. ${p.label}`).join('\n');
-    const ans = prompt(`Add a built-in calendar:\n${names}\n\nEnter a number`, '1');
-    if (ans === null) return;
-    const i = parseInt(ans, 10) - 1;
-    if (!(i >= 0 && i < opts.length)) { alert('No such preset.'); return; }
-    const p = presetCal(opts[i].id);
-    p.kind = 'builtin';
-    Store.addCalendar(S, p);
-    refresh(); render();
-  }
-
   function render() {
     const list = $('calList');
     list.innerHTML = '';
@@ -105,22 +124,24 @@
     list.appendChild(section('Calendars', builtins, 'Add built-in calendar', 'builtin'));
     list.appendChild(section('Custom', customs, 'Add custom calendar', 'custom'));
 
-    const off = hidden();
+    const off = window.hiddenIds();
     const shown = S.calendars.filter(c => !off.has(c.id)).length;
     $('viewCount').textContent = `${shown} of ${S.calendars.length} shown`;
-    $('viewRange').textContent =
-      `${builtins.length} built-in · ${customs.length} custom`;
+    $('viewRange').textContent = `${builtins.length} built-in · ${customs.length} custom`;
   }
-
-  window.calVisible = () => S.calendars.filter(c => !hidden().has(c.id));
 
   $('resetBtn').onclick = () => {
     if (!confirm('Reset all dummy data to the original seed?')) return;
     localStorage.removeItem('chronologyX.hidden');
     S = Store.reset();
-    window.dispatchEvent(new CustomEvent('cal-visibility'));
+    window.dispatchEvent(new Event('cal-visibility'));
     render();
   };
+
+  document.addEventListener('click', (e) => {
+    const pop = $('presetPop');
+    if (pop && !e.target.closest('#presetPop') && !e.target.closest('.sec-head .btn')) pop.remove();
+  });
 
   render();
 })();

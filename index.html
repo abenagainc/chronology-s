@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chronology S — Calendars</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='4' fill='%23d1e7d1'/></svg>">
-<link rel="stylesheet" href="cal/styles.css?cb=5">
+<link rel="stylesheet" href="cal/styles.css?cb=6">
 </head>
 <body>
 <div class="app">
@@ -31,7 +31,6 @@
   <div class="body">
     <!-- ============ left: calendar list ============ -->
     <aside class="side">
-      <p class="label">Calendars</p>
       <div id="calList"></div>
 
       <p class="label">View</p>
@@ -43,26 +42,30 @@
 
     <!-- ============ right: timeline ============ -->
     <main class="main">
-      <!-- controls live OUTSIDE the table, in-flow, centred above it -->
+      <!-- controls live OUTSIDE the table, in-flow, left/right split above it -->
       <div class="tl-controls">
-        <button class="btn sm" id="zin" title="Zoom in">＋</button>
-        <button class="btn sm" id="zout" title="Zoom out">－</button>
-        <span class="sep" style="width:1px;height:18px;background:var(--border)"></span>
-        <button class="btn sm" id="left" title="Scroll calendars left">← calendars</button>
-        <button class="btn sm" id="right" title="Scroll calendars right">→ calendars</button>
-        <span class="sep" style="width:1px;height:18px;background:var(--border)"></span>
-        <button class="btn icon" id="up" title="Earlier">↑</button>
-        <button class="btn icon" id="down" title="Later">↓</button>
-        <select class="select" id="zoomSel" title="Zoom">
-          <option value="fit">Fit all</option>
-          <option value="millennia">Millennia</option>
-          <option value="centuries">Centuries</option>
-          <option value="years" selected>Years</option>
-          <option value="months">Months</option>
-          <option value="days">Days</option>
-        </select>
-        <button class="btn" id="todayBtn">Today</button>
-        <button class="btn sm" id="tickBtn" title="Tick &amp; label settings">☰ ticks</button>
+        <div class="ctl-left">
+          <select class="select ctl" id="zoomSel" title="Zoom">
+            <option value="fit">Fit all</option>
+            <option value="millennia">Millennia</option>
+            <option value="centuries">Centuries</option>
+            <option value="years" selected>Years</option>
+            <option value="months">Months</option>
+            <option value="days">Days</option>
+          </select>
+          <button class="btn icon" id="zin" title="Zoom in">＋</button>
+          <button class="btn icon" id="zout" title="Zoom out">－</button>
+          <span class="sep" style="width:1px;height:18px;background:var(--border)"></span>
+          <button class="btn icon" id="left" title="Scroll calendars left">←</button>
+          <button class="btn icon" id="right" title="Scroll calendars right">→</button>
+          <span class="sep" style="width:1px;height:18px;background:var(--border)"></span>
+          <button class="btn icon" id="up" title="Earlier">↑</button>
+          <button class="btn icon" id="down" title="Later">↓</button>
+        </div>
+        <div class="ctl-right">
+          <button class="btn sm" id="tickBtn" title="Tick &amp; label settings">☰ ticks</button>
+          <button class="btn sm" id="todayBtn">Today</button>
+        </div>
 
         <div class="popover" id="tickPop" hidden>
           <div class="pop-row">

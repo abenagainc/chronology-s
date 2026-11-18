@@ -14,6 +14,20 @@
   const MINY_D = DAY_TOP, MAXY_D = DAY_BOT;      // day-index bounds
   const RULER_W = 78, COLW = 210, EVLH = 16;
 
+  /* visibility: ONE source of truth, shared by the sidebar and the timeline.
+     Both modules previously kept their own copy and their own localStorage
+     closure, so the checkbox updated the filter but the timeline never redrew. */
+  const HIDE_KEY = 'chronologyX.hidden';
+  function hiddenIds() {
+    try { return new Set(JSON.parse(localStorage.getItem(HIDE_KEY) || '[]')); }
+    catch (e) { return new Set(); }
+  }
+  function setHidden(ids) { localStorage.setItem(HIDE_KEY, JSON.stringify([...ids])); }
+  /** The calendars currently drawn in row 2. */
+  window.calVisible = () => S.calendars.filter(c => !hiddenIds().has(c.id));
+  window.hiddenIds = hiddenIds;
+  window.setHidden = setHidden;
+
   let S = Store.load();
   let PPD = 0.006;                                 // pixels per DAY — the one zoom knob
 
@@ -40,29 +54,40 @@
   }
   const day2px = day => (day - DAY_TOP) * PPD;
   const px2day = px => DAY_TOP + px / PPD;
+  /* SCROLL MODEL — the one place this is defined.
+     The scrollable content = the column BODY (the day range) + one header height,
+     because every column carries a 46px header ABOVE its body. Counting only the
+     day range left the bottom ~225px unreachable, so the crosshair (pinned to
+     the viewport centre) could never reach the last ticks. */
+  const HEAD_H = 46;
   const bodyH = () => DAYS_TOTAL * PPD;
+  const scrollH = () => bodyH() + HEAD_H;
 
   /* Year step for the marks: the smallest step whose spacing is >= MIN_PX apart.
      Returns {step, majorEvery} where majorEvery is how many steps make a labelled
      (major) mark — so a label always exists, whatever the zoom. */
-  const MIN_PX = 80;
+  /* Two separate budgets, deliberately:
+     TICK_PX  — how far apart ticks must be to be DRAWN. Small, so finer tiers
+                appear as you zoom.
+     LABEL_PX — how far apart LABELS must be to be legible. Larger, so text never
+                collides. Decoupling these is what lets "many ticks, few labels". */
+  const TICK_PX = 6;
+  const LABEL_PX = 80;
   /* Tick hierarchy, coarse → fine. Each tier is tried in order and used when it
-     fits MIN_PX apart at the current zoom, so zooming in naturally refines the
+     fits TICK_PX apart at the current zoom, so zooming in naturally refines the
      ticks: millennium → century → decade → year → month → day. */
   const TIERS = ['millennium', 'century', 'decade', 'year', 'month', 'day'];
 
-  /* How many of `unit` fit in a pixel budget at the current zoom. */
-  function fits(unitDays) { return unitDays * PPD >= MIN_PX; }
+  /* How many of `unit` fit in the tick budget at the current zoom. */
+  function fits(unitDays) { return unitDays * PPD >= TICK_PX; }
 
   function pickTier(cal) {
     const yr = 365.2425;
-    // coarse tiers first, then month, then day
     if (fits(yr * 1000)) return 'millennium';
     if (fits(yr * 100)) return 'century';
     if (fits(yr * 10)) return 'decade';
     if (fits(yr)) return 'year';
     if (fits(30.4)) return 'month';
-    if (fits(1)) return 'day';
     return 'day';
   }
 
@@ -151,16 +176,19 @@
     return out;
   }
 
-  /* The ruler marks: same generator, but in the SELECTED reference calendar. */
+  /* The ruler marks: same generator, but in the SELECTED reference calendar.
+     It draws the SAME mark extent as the columns (so it never ends early) and
+     only suppresses the TEXT on minor ticks — filtering the marks themselves
+     made the ruler stop ~1200px short of the columns. */
   function rulerMarks() {
     const ref = BY_ID[REF_ID] || BY_ID.gregorian;
-    return marksFor(ref).filter(m => m.major && m.label);
+    return marksFor(ref);
   }
 
   function render() {
     const inner = $('vt-inner');
     inner.innerHTML = '';
-    const H = bodyH();
+    const H = scrollH();              // total scrollable height (body + header)
     const frag = document.createDocumentFragment();
 
     /* --- year ruler: sticky, labels only, same map as the columns ---
@@ -180,6 +208,7 @@
     rb.className = 'ruler-body';
     rb.style.height = H + 'px';
     for (const m of rulerMarks()) {
+      if (!m.label) continue;         // minor ticks get a line, not text
       const l = document.createElement('div');
       l.className = 'ruler-lab';
       l.style.top = m.px + 'px';

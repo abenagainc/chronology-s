@@ -88,8 +88,21 @@ h2 { font-size: .95rem; margin: 0; }
 .cal-item .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 .cal-item .t { flex: 1; min-width: 0; font-size: 13.5px; color: var(--text);
                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cal-item .acts { display: flex; gap: 1px; flex: 0 0 auto; }
+.cal-item .acts { display: flex; gap: 1px; flex: 0 0 auto; align-items: center; }
 .cal-item .acts .btn { width: 20px; height: 20px; padding: 0; font-size: 11px; }
+/* colour swatch: one element that is both the indicator and the control */
+.cal-item .swatch { width: 20px; height: 20px; padding: 0; border: 1px solid var(--border);
+                    border-radius: 5px; background: none; cursor: pointer; flex: 0 0 auto; }
+.cal-item .swatch::-webkit-color-swatch-wrapper { padding: 2px; }
+.cal-item .swatch::-webkit-color-swatch { border: none; border-radius: 3px; }
+/* built-in date-format button */
+.cal-item .fmt { width: auto; height: 20px; padding: 0 6px; font-family: var(--mono);
+                 font-size: 10px; letter-spacing: .3px; }
+
+/* preset picker (anchored near the section add button) */
+.pop-side { position: fixed; width: 220px; }
+.pop-opt { padding: 7px 10px; font-size: 13px; border-radius: 6px; cursor: pointer; }
+.pop-opt:hover { background: var(--bg); color: var(--text); }
 
 /* checkbox */
 .cb { width: 16px; height: 16px; border-radius: 4px; border: 1px solid #555;
@@ -113,16 +126,20 @@ h2 { font-size: .95rem; margin: 0; }
 /* ---------- timeline ---------- */
 /* The timeline sits in its own inset panel: rounded corners on the darker
    canvas, distinct from the lighter sidebar/tools around it. */
-/* controls: in-flow, centred above the table, not part of any row */
-.tl-controls { position: relative; display: flex; align-items: center; justify-content: center;
-               gap: 8px; padding: 14px 16px 12px; flex-wrap: wrap; }
+/* controls: in-flow, above the table. Left cluster = view, right = ticks/today. */
+.tl-controls { position: relative; display: flex; align-items: center; justify-content: space-between;
+               gap: 12px; padding: 14px 16px 12px; flex-wrap: wrap; }
+.ctl-left, .ctl-right { display: flex; align-items: center; gap: 6px; }
+.ctl .btn, .ctl.select { height: 34px; }          /* one uniform control height */
+.ctl.select { padding: 0 10px; }
+.ctl-right .btn { height: 34px; padding: 0 14px; }
 .tl-panel { background: var(--bg); border: 1px solid var(--border-soft);
             border-radius: var(--radius); margin: 0 16px 16px; overflow: hidden;
             display: flex; flex-direction: column; min-height: 0; }
 
 /* tick / label popover */
-.popover { position: absolute; top: calc(100% - 6px); left: 50%; transform: translateX(-50%);
-           z-index: 30; width: 320px; background: var(--panel-2);
+.popover { position: absolute; top: calc(100% - 6px); right: 16px; z-index: 30;
+           width: 320px; background: var(--panel-2);
            border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
            box-shadow: 0 12px 30px rgba(0,0,0,.5); text-align: left; }
 .pop-row { display: flex; align-items: center; gap: 10px; padding: 5px 0;
@@ -171,12 +188,13 @@ h2 { font-size: .95rem; margin: 0; }
 .col-head .warn { display: block; font-size: 10px; color: #e0a3a3; }
 .col-body { position: relative; }
 
-.mark { position: absolute; left: 4px; right: 4px; border-radius: 2px; opacity: .5; }
-/* tick size follows the tier: year big, month small, day smaller */
-.mark.year { height: 2px; background: var(--border); opacity: .8; }
-.mark.dec { height: 1px; background: #3a3f3a; }
-.mark.month { height: 1px; background: #333833; opacity: .6; }
-.mark.day { height: 1px; background: #2c2f2c; opacity: .45; }
+.mark { position: absolute; left: 4px; right: 4px; border-radius: 2px;
+        height: 1px; background: #3a3f3a; opacity: .6; }
+/* tick weight follows the tier: year big, month small, day smallest */
+.mark.millennium, .mark.century, .mark.decade,
+.mark.year     { height: 2px; background: var(--border); opacity: .85; }
+.mark.month    { height: 1px; background: #333833; opacity: .6; }
+.mark.day      { height: 1px; background: #2c2f2c; opacity: .45; }
 .mark.lab { font-family: var(--mono); font-size: var(--label-px, 10px); color: var(--muted); background: none;
             transform: translateY(-50%); padding-left: 8px; height: auto; opacity: 1; }
 
