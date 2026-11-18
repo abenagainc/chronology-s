@@ -35,7 +35,10 @@ jobs:
       - name: Stage the Chronology S section into site/s/
         run: |
           mkdir -p site/s
-          cp index.html calendars.html events.html checks.html site/s/
+          # copy what exists; a removed page must not break the deploy
+          for f in index.html checks.html calendars.html events.html; do
+            [ -e "$f" ] && cp "$f" site/s/
+          done
           cp -r cal site/s/cal
       - name: Push to the site repo (gh-pages)
         env:

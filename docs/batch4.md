@@ -59,11 +59,24 @@ Order (finest → coarsest): day, month, year, decade, century, millennium.
 The density/label sliders then ADD ticks on top of that default.
 Show which tier is active at the current zoom so we can tune it live.
 
-## 10. Time-direction toggle — LAST, own pass
-Flip ruler + all columns between past-on-top and future-on-top.
-Approach: invert once in `day2px`/`px2day`, make scroll position
-direction-agnostic. Abe was right that it should not be a big deal; the cost is
-finding every scroll assumption.
+## 10. Time-direction toggle — DEFERRED (Abe, 2026-11-18)
+
+Abe: *"I'll leave it for now if leaving it doesn't make it a bigger problem later."*
+**It does not.** Reason, verified by reading the code:
+
+Every direction assumption flows through exactly two functions —
+`day2px = day => (day - DAY_TOP) * PPD` and `px2day = px => DAY_TOP + px / PPD`.
+Ticks, events, the crosshair and the scroll-positioning arithmetic all call them,
+so inverting the axis is a `DIRECTION` constant plus a sign in those two bodies
+(~5 lines). Nothing added later makes it harder, PROVIDED new code goes through
+`day2px`/`px2day` rather than reading `scrollTop` and doing its own arithmetic.
+
+The only real cost is VERIFICATION: an inverted axis fails subtly (events drift,
+crosshair off by a screen) at particular scroll positions, so it wants a
+dedicated pass rather than being bundled with something else.
+
+**Watch for:** any new code that computes position from `scrollTop` directly must
+honour `DIRECTION`. Keep routing through `day2px`/`px2day`.
 
 ## Order of work
 1–8 now (one pass). 9 with them (it is UI in the popover). 10 separately, last,
