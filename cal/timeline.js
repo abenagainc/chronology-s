@@ -11,10 +11,18 @@
   const DAY_TOP = gregorianToDay(MINY, 1, 1);
   const DAY_BOT = gregorianToDay(MAXY, 12, 31);
   const DAYS_TOTAL = DAY_BOT - DAY_TOP;
+  const MINY_D = DAY_TOP, MAXY_D = DAY_BOT;      // day-index bounds
   const RULER_W = 78, COLW = 210, EVLH = 16;
 
   let S = Store.load();
   let PPD = 0.006;                                 // pixels per DAY — the one zoom knob
+
+  /* Tick / label settings, driven by the popover. */
+  let TICK_DENSITY = 1;      // minor-tick multiplier (0.25 … 4)
+  let LABEL_EVERY = 1;       // label every Nth major tick (1 … 8)
+  let LABEL_SIZE = 10;       // px
+  let SHOW_LABELS = true;
+  let REF_ID = 'gregorian';  // which calendar the RULER shows
 
   const $ = id => document.getElementById(id);
   const sc = () => $('vt-scroll');
@@ -38,33 +46,115 @@
      Returns {step, majorEvery} where majorEvery is how many steps make a labelled
      (major) mark — so a label always exists, whatever the zoom. */
   const MIN_PX = 80;
-  function yearStep() {
-    const pxPerYear = 365.2425 * PPD;
-    const steps = [1, 2, 5, 10, 25, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
-    let step = steps[steps.length - 1];
-    for (const s of steps) { if (pxPerYear * s >= MIN_PX) { step = s; break; } }
-    // label every Nth mark so labels stay >= MIN_PX apart
-    let majorEvery = 1;
-    while (pxPerYear * step * majorEvery < MIN_PX * 1.6 && majorEvery < 10) majorEvery++;
-    return { step, majorEvery };
+  /* Tick hierarchy, coarse → fine. Each tier is tried in order and used when it
+     fits MIN_PX apart at the current zoom, so zooming in naturally refines the
+     ticks: millennium → century → decade → year → month → day. */
+  const TIERS = ['millennium', 'century', 'decade', 'year', 'month', 'day'];
+
+  /* How many of `unit` fit in a pixel budget at the current zoom. */
+  function fits(unitDays) { return unitDays * PPD >= MIN_PX; }
+
+  function pickTier(cal) {
+    const yr = 365.2425;
+    // coarse tiers first, then month, then day
+    if (fits(yr * 1000)) return 'millennium';
+    if (fits(yr * 100)) return 'century';
+    if (fits(yr * 10)) return 'decade';
+    if (fits(yr)) return 'year';
+    if (fits(30.4)) return 'month';
+    if (fits(1)) return 'day';
+    return 'day';
   }
 
-  /* ---------- per-calendar year marks ---------- */
+  /* Label for a tick at a given tier. */
+  function tierLabel(day, cal, tier) {
+    const d = dayToDate(day, cal);
+    if (tier === 'millennium') return yearLabel(Math.floor(d.y / 1000) * 1000, cal.era);
+    if (tier === 'century') return yearLabel(Math.floor(d.y / 100) * 100, cal.era);
+    if (tier === 'decade') return yearLabel(Math.floor(d.y / 10) * 10, cal.era);
+    if (tier === 'year') return yearLabel(d.y, cal.era);
+    if (tier === 'month') return cal.months[d.m - 1]?.name?.slice(0, 3) || d.m;
+    return String(d.d);
+  }
+
+  /* ---------- marks for a calendar ----------
+     KIND SEAM: built-ins use the standard hierarchy above. Custom calendars go
+     through customMarks(), which currently behaves identically — the point is
+     that the behaviour can diverge in ONE place without touching the renderer. */
   function marksFor(cal) {
+    if (cal.kind === 'builtin' || !cal.kind) return builtinMarks(cal);
+    return customMarks(cal);
+  }
+
+  function customMarks(cal) {
+    // Custom calendars are the investigation surface: their tick model is
+    // deliberately open. For now it matches the built-in hierarchy.
+    return builtinMarks(cal);
+  }
+
+  function builtinMarks(cal) {
     const out = [];
-    const { step, majorEvery } = yearStep();
+    const tier = pickTier(cal);
+    const density = TICK_DENSITY;          // user multiplier on minor ticks
+    const show = SHOW_LABELS;
+    const every = LABEL_EVERY;             // label every Nth major tick
+
+    if (tier === 'day') {
+      // individual days: step in whole days, subdivided by density
+      const step = Math.max(1, Math.round(1 / density));
+      let i = 0;
+      for (let d = Math.ceil(MINY_D / step) * step; d <= MAXY_D; d += step, i++) {
+        const major = (i % Math.max(1, Math.round(7 / density))) === 0;
+        out.push({ px: day2px(d), label: major && show ? tierLabel(d, cal, 'day') : '',
+                  major, tier });
+      }
+      return out;
+    }
+
+    if (tier === 'month') {
+      // walk month starts in THIS calendar
+      let i = 0;
+      for (let y = MINY; y <= MAXY; y++) {
+        for (let m = 1; m <= cal.months.length; m++) {
+          const day = dateToDay(y, m, 1, cal);
+          if (day < MINY_D || day > MAXY_D) continue;
+          const major = (i % Math.max(1, Math.round(6 / density))) === 0;
+          out.push({ px: day2px(day),
+                    label: major && show && (i % every) === 0 ? tierLabel(day, cal, 'month') : '',
+                    major, tier });
+          i++;
+        }
+      }
+      return out;
+    }
+
+    // year-granular tiers
+    const span = tier === 'millennium' ? 1000 : tier === 'century' ? 100 : tier === 'decade' ? 10 : 1;
+    const sub = Math.max(1, Math.round(span / (span === 1 ? 1 : density)));
     let i = 0;
-    for (let y = Math.ceil(MINY / step) * step; y <= MAXY; y += step, i++) {
-      const major = (i % majorEvery) === 0;
-      out.push({ px: day2px(dateToDay(y, 1, 1, cal)), label: yearLabel(y, cal.era), major });
+    const start = Math.ceil(MINY / span) * span;
+    for (let y = start; y <= MAXY; y += span, i++) {
+      const isMajor = span === 1 ? true : (i % Math.max(1, Math.round(1 / density))) === 0;
+      const day = dateToDay(y, 1, 1, cal);
+      const labelled = isMajor && (i % every) === 0;
+      out.push({ px: day2px(day), label: labelled && show ? tierLabel(day, cal, tier) : '',
+                major: isMajor, tier });
+      // minor subdivisions for coarse tiers
+      if (span > 1 && density > 1) {
+        for (let k = 1; k < density; k++) {
+          const yy = y + Math.round(span / density) * k;
+          if (yy > MAXY) break;
+          out.push({ px: day2px(dateToDay(yy, 1, 1, cal)), label: '', major: false, tier });
+        }
+      }
     }
     return out;
   }
 
-  /* The ruler marks, in Gregorian. Derived from the SAME marksFor() the
-     Gregorian column uses, so ruler and column cannot diverge. */
+  /* The ruler marks: same generator, but in the SELECTED reference calendar. */
   function rulerMarks() {
-    return marksFor(BY_ID.gregorian).filter(m => m.major);
+    const ref = BY_ID[REF_ID] || BY_ID.gregorian;
+    return marksFor(ref).filter(m => m.major && m.label);
   }
 
   function render() {
@@ -81,7 +171,10 @@
     ruler.style.width = RULER_W + 'px';
     const rh = document.createElement('div');
     rh.className = 'col-head';
-    rh.innerHTML = 'year<span class="sub">Gregorian</span>';
+    // reference selector: the ruler declares which calendar it shows
+    rh.innerHTML = `<select class="select ref-sel" id="refSel" title="Ruler reference calendar">
+        ${S.calendars.map(c => `<option value="${esc(c.id)}"${c.id === REF_ID ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}
+      </select><span class="sub">reference</span>`;
     ruler.appendChild(rh);
     const rb = document.createElement('div');
     rb.className = 'ruler-body';
@@ -114,7 +207,7 @@
       if (ready) {
         for (const m of marksFor(cal)) {
           const el = document.createElement('div');
-          el.className = 'mark ' + (m.major ? 'year' : 'dec');
+          el.className = 'mark ' + (m.tier || (m.major ? 'year' : 'dec'));
           el.style.top = m.px + 'px';
           body.appendChild(el);
           if (m.major) {
@@ -157,11 +250,15 @@
   }
 
   function renderLegend() {
-    const ref = BY_ID.gregorian;
-    const items = [`<span class="k"><i class="sw" style="background:#8e8e93"></i>ruler: Gregorian (reference)</span>`]
+    const items = [`<span class="k"><i class="sw" style="background:#8e8e93"></i>ruler: <span id="legendRef">${esc((BY_ID[REF_ID] || BY_ID.gregorian || {}).name || 'Gregorian')}</span> (reference)</span>`]
       .concat((window.calVisible ? window.calVisible() : S.calendars).map(c =>
         `<span class="k"><i class="sw" style="background:${c.color}"></i>${esc(c.name)}</span>`));
     $('legendCals').innerHTML = items.join('');
+  }
+
+  /** Push the label-size setting onto every label element. */
+  function applyLabelSize() {
+    document.documentElement.style.setProperty('--label-px', LABEL_SIZE + 'px');
   }
 
   function updateRange() {
@@ -245,6 +342,29 @@
     // sidebar changes (visibility, add/edit/delete) -> redraw
     window.addEventListener('cal-visibility', () => { S = Store.load(); render(); });
     window.addEventListener('cal-changed', () => { S = Store.load(); render(); });
+
+    /* --- tick / label popover --- */
+    const pop = $('tickPop'), tickBtn = $('tickBtn');
+    if (tickBtn && pop) {
+      tickBtn.onclick = (e) => { e.stopPropagation(); pop.hidden = !pop.hidden; };
+      pop.addEventListener('click', (e) => e.stopPropagation());
+      document.addEventListener('click', () => { pop.hidden = true; });
+      $('tickDensity').oninput = (e) => { TICK_DENSITY = +e.target.value; render(); };
+      $('labelEvery').oninput = (e) => { LABEL_EVERY = +e.target.value; render(); };
+      $('labelSize').onchange = (e) => { LABEL_SIZE = +e.target.value; applyLabelSize(); render(); };
+      $('showLabels').onchange = (e) => { SHOW_LABELS = e.target.checked; render(); };
+    }
+    /* --- ruler reference selector (delegated: render() rebuilds the ruler) --- */
+    const inner0 = $('vt-inner');
+    inner0.addEventListener('change', (e) => {
+      if (e.target && e.target.id === 'refSel') {
+        REF_ID = e.target.value;
+        const ref = BY_ID[REF_ID];
+        const lr = $('legendRef');
+        if (lr && ref) lr.textContent = ref.name;
+        render();
+      }
+    });
 
     s.addEventListener('scroll', () => {
       updateRange();

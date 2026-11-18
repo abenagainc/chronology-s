@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chronology S — Calendars</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='4' fill='%23d1e7d1'/></svg>">
-<link rel="stylesheet" href="cal/styles.css?cb=4">
+<link rel="stylesheet" href="cal/styles.css?cb=5">
 </head>
 <body>
 <div class="app">
@@ -33,8 +33,6 @@
     <aside class="side">
       <p class="label">Calendars</p>
       <div id="calList"></div>
-      <div style="height:12px"></div>
-      <button class="btn pill" id="newCalBtn" style="width:100%">＋ Add calendar</button>
 
       <p class="label">View</p>
       <div style="font-size:13px;color:var(--muted);line-height:1.5">
@@ -45,33 +43,65 @@
 
     <!-- ============ right: timeline ============ -->
     <main class="main">
-      <div class="tl-panel">
-        <div class="tl-tools">
-          <button class="btn sm" id="zin">＋</button>
-          <button class="btn sm" id="zout">－</button>
-          <span class="sep" style="width:1px;height:18px;background:var(--border)"></span>
-          <button class="btn sm" id="left">← calendars</button>
-          <button class="btn sm" id="right">→ calendars</button>
-          <span class="sep" style="width:1px;height:18px;background:var(--border)"></span>
-          <button class="btn icon" id="up" title="Earlier">↑</button>
-          <button class="btn icon" id="down" title="Later">↓</button>
-          <select class="select" id="zoomSel" title="Zoom">
-            <option value="fit">Fit all</option>
-            <option value="millennia">Millennia</option>
-            <option value="centuries">Centuries</option>
-            <option value="years" selected>Years</option>
-            <option value="months">Months</option>
-            <option value="days">Days</option>
-          </select>
-          <button class="btn" id="todayBtn">Today</button>
-        </div>
+      <!-- controls live OUTSIDE the table, in-flow, centred above it -->
+      <div class="tl-controls">
+        <button class="btn sm" id="zin" title="Zoom in">＋</button>
+        <button class="btn sm" id="zout" title="Zoom out">－</button>
+        <span class="sep" style="width:1px;height:18px;background:var(--border)"></span>
+        <button class="btn sm" id="left" title="Scroll calendars left">← calendars</button>
+        <button class="btn sm" id="right" title="Scroll calendars right">→ calendars</button>
+        <span class="sep" style="width:1px;height:18px;background:var(--border)"></span>
+        <button class="btn icon" id="up" title="Earlier">↑</button>
+        <button class="btn icon" id="down" title="Later">↓</button>
+        <select class="select" id="zoomSel" title="Zoom">
+          <option value="fit">Fit all</option>
+          <option value="millennia">Millennia</option>
+          <option value="centuries">Centuries</option>
+          <option value="years" selected>Years</option>
+          <option value="months">Months</option>
+          <option value="days">Days</option>
+        </select>
+        <button class="btn" id="todayBtn">Today</button>
+        <button class="btn sm" id="tickBtn" title="Tick &amp; label settings">☰ ticks</button>
 
+        <div class="popover" id="tickPop" hidden>
+          <div class="pop-row">
+            <span class="pop-lab">Tick density</span>
+            <span class="pop-ctl">fewer <input type="range" id="tickDensity" min="0.25" max="4" step="0.25" value="1"> more</span>
+          </div>
+          <div class="pop-row">
+            <span class="pop-lab">Labels</span>
+            <span class="pop-ctl">fewer <input type="range" id="labelEvery" min="1" max="8" step="1" value="1"> more</span>
+          </div>
+          <div class="pop-row">
+            <span class="pop-lab">Label size</span>
+            <span class="pop-ctl">
+              <select id="labelSize">
+                <option value="9">small</option>
+                <option value="10" selected>medium</option>
+                <option value="12">large</option>
+              </select>
+            </span>
+          </div>
+          <div class="pop-row">
+            <span class="pop-lab">Show year labels</span>
+            <span class="pop-ctl"><input type="checkbox" id="showLabels" checked></span>
+          </div>
+          <div class="pop-hint">Density adds tick lines; Labels control how many of
+            them carry text. Ticks are year / month / day, chosen by zoom.</div>
+        </div>
+      </div>
+
+      <div class="tl-panel">
+        <!-- row 1: coordinates -->
         <div class="tl-range"><span class="range" id="range">—</span></div>
 
+        <!-- row 2: the timeline -->
         <div id="vt-scroll"><div id="vt-inner"></div></div>
 
+        <!-- row 3: legend -->
         <div class="legend">
-          <span class="k"><i class="sw" style="background:#8e8e93"></i>ruler: Gregorian (reference)</span>
+          <span class="k"><i class="sw" style="background:#8e8e93"></i>ruler: <span id="legendRef">Gregorian</span> (reference)</span>
           <span class="k" id="legendCals"></span>
           <span class="k" style="margin-left:auto">one day = one height across every calendar</span>
         </div>

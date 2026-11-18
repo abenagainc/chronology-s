@@ -65,25 +65,31 @@ h2 { font-size: .95rem; margin: 0; }
 .body { flex: 1; display: flex; min-height: 0; background: var(--panel);
         border: 1px solid var(--border-soft); border-top: none;
         border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; }
-.side { width: 260px; flex: 0 0 260px; border-right: 1px solid var(--border);
-        padding: 20px; overflow-y: auto; background: var(--panel); }
+.side { width: 284px; flex: 0 0 284px; border-right: 1px solid var(--border);
+        padding: 20px 16px; overflow-y: auto; background: var(--panel); }
 .side .label { font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
                color: var(--muted); margin: 0 0 14px; font-weight: 600; }
 .side .label:not(:first-child) { margin-top: 26px; }
 
-.cal-item { display: flex; align-items: center; gap: 10px; padding: 9px 8px;
+/* section: a labelled group with its own add button */
+.sec-head { display: flex; align-items: center; justify-content: space-between;
+            margin: 0 0 6px; }
+.sec-head .label { margin: 0; }
+.sec-head .btn { width: 22px; height: 22px; padding: 0; font-size: 13px; line-height: 1; }
+.sec-list { display: flex; flex-direction: column; gap: 1px; }
+.sec-list + .sec-head { margin-top: 18px; }
+.sec-empty { font-size: 12px; color: var(--muted); padding: 6px 8px; font-style: italic; }
+
+/* compact row: checkbox, dot, name, then actions — one line */
+.cal-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px;
             border-radius: var(--radius-sm); cursor: default; }
 .cal-item:hover { background: var(--bg); }
 .cal-item.off { opacity: .42; }
 .cal-item .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
-.cal-item .txt { flex: 1; min-width: 0; }
-.cal-item .t { font-size: 15px; color: var(--text); white-space: nowrap; overflow: hidden;
-               text-overflow: ellipsis; }
-.cal-item .s { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden;
-               text-overflow: ellipsis; }
-.cal-item .acts { display: none; gap: 2px; }
-.cal-item:hover .acts { display: flex; }
-.cal-item .acts .btn { width: 24px; height: 24px; padding: 0; font-size: 12px; }
+.cal-item .t { flex: 1; min-width: 0; font-size: 13.5px; color: var(--text);
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-item .acts { display: flex; gap: 1px; flex: 0 0 auto; }
+.cal-item .acts .btn { width: 20px; height: 20px; padding: 0; font-size: 11px; }
 
 /* checkbox */
 .cb { width: 16px; height: 16px; border-radius: 4px; border: 1px solid #555;
@@ -107,13 +113,29 @@ h2 { font-size: .95rem; margin: 0; }
 /* ---------- timeline ---------- */
 /* The timeline sits in its own inset panel: rounded corners on the darker
    canvas, distinct from the lighter sidebar/tools around it. */
+/* controls: in-flow, centred above the table, not part of any row */
+.tl-controls { position: relative; display: flex; align-items: center; justify-content: center;
+               gap: 8px; padding: 14px 16px 12px; flex-wrap: wrap; }
 .tl-panel { background: var(--bg); border: 1px solid var(--border-soft);
             border-radius: var(--radius); margin: 0 16px 16px; overflow: hidden;
             display: flex; flex-direction: column; min-height: 0; }
-.tl-tools { display: flex; align-items: center; gap: 8px; padding: 10px 16px;
-            background: var(--panel-2); border-bottom: 1px solid var(--border-soft);
-            flex-wrap: wrap; }
-.tl-tools .range { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+/* tick / label popover */
+.popover { position: absolute; top: calc(100% - 6px); left: 50%; transform: translateX(-50%);
+           z-index: 30; width: 320px; background: var(--panel-2);
+           border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
+           box-shadow: 0 12px 30px rgba(0,0,0,.5); text-align: left; }
+.pop-row { display: flex; align-items: center; gap: 10px; padding: 5px 0;
+           border-bottom: 1px solid var(--border-soft); }
+.pop-row:last-of-type { border-bottom: none; }
+.pop-lab { font-size: 11px; letter-spacing: .5px; text-transform: uppercase;
+           color: var(--muted); flex: 0 0 92px; font-weight: 600; }
+.pop-ctl { flex: 1; display: flex; align-items: center; gap: 6px; font-size: 11px;
+           color: var(--muted); }
+.pop-ctl input[type=range] { flex: 1; accent-color: var(--accent); }
+.pop-ctl select { width: auto; padding: 3px 8px; font-size: 12px; }
+.pop-ctl input[type=checkbox] { width: auto; accent-color: var(--accent); }
+.pop-hint { font-size: 10px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
 /* slim, centred readout strip — just tall enough for one line */
 .tl-range { padding: 5px 16px; background: var(--panel-2); border-bottom: 1px solid var(--border-soft);
             text-align: center; }
@@ -127,7 +149,11 @@ h2 { font-size: .95rem; margin: 0; }
 .ruler .col-head { background: var(--panel); }
 .ruler-body { position: relative; }
 .ruler-lab { position: absolute; left: 10px; transform: translateY(-50%);
-             font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+             font-family: var(--mono); font-size: var(--label-px, 10px); color: var(--muted);
+             white-space: nowrap; }
+/* reference selector in the ruler header — must fit the fixed 46px header */
+.ref-sel { font-size: 11px; padding: 2px 4px; height: 22px; width: 100%;
+           background: var(--panel-2); }
 
 .col { position: relative; border-right: 1px solid var(--border-soft); flex: 0 0 auto; }
 .col-head { position: sticky; top: 0; z-index: 6; background: var(--panel); padding: 10px 12px;
@@ -146,9 +172,12 @@ h2 { font-size: .95rem; margin: 0; }
 .col-body { position: relative; }
 
 .mark { position: absolute; left: 4px; right: 4px; border-radius: 2px; opacity: .5; }
-.mark.year { height: 1px; background: var(--border); }
-.mark.dec { height: 1px; background: #2c2c2e; }
-.mark.lab { font-family: var(--mono); font-size: 10px; color: var(--muted); background: none;
+/* tick size follows the tier: year big, month small, day smaller */
+.mark.year { height: 2px; background: var(--border); opacity: .8; }
+.mark.dec { height: 1px; background: #3a3f3a; }
+.mark.month { height: 1px; background: #333833; opacity: .6; }
+.mark.day { height: 1px; background: #2c2f2c; opacity: .45; }
+.mark.lab { font-family: var(--mono); font-size: var(--label-px, 10px); color: var(--muted); background: none;
             transform: translateY(-50%); padding-left: 8px; height: auto; opacity: 1; }
 
 .ev { position: absolute; border: none; border-radius: var(--radius-sm); padding: 5px 10px;
