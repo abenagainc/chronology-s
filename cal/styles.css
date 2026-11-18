@@ -71,19 +71,18 @@ h2 { font-size: .95rem; margin: 0; }
                color: var(--muted); margin: 0 0 14px; font-weight: 600; }
 .side .label:not(:first-child) { margin-top: 26px; }
 
-/* collapsed rail: a thin vertical strip; the arrow at its top is a real button */
-.rail { flex: 0 0 26px; width: 26px; border: none; border-right: 1px solid var(--border);
-        background: var(--panel); color: var(--muted); cursor: pointer; padding: 0;
-        display: flex; flex-direction: column; align-items: center; gap: 10px; }
+/* rail: the label lives INSIDE the strip, below the arrow */
+.rail { position: relative; flex: 0 0 26px; width: 26px; border: none;
+        border-right: 1px solid var(--border); background: var(--panel);
+        color: var(--muted); cursor: pointer; padding: 0;
+        display: flex; flex-direction: column; align-items: center; }
 .rail:hover { background: var(--panel-2); color: var(--text); }
 .rail .rail-arrow { flex: 0 0 auto; width: 20px; height: 20px; margin-top: 14px;
         display: grid; place-items: center; border: 1px solid var(--border);
         border-radius: 6px; font-size: 12px; line-height: 1; color: var(--muted);
         background: var(--panel-2); }
 .rail:hover .rail-arrow { color: var(--text); border-color: var(--accent-dim); }
-/* the label sits below the arrow, clear of the panel heading */
-.rail .rail-lab { position: absolute; top: 62px; left: 0; right: 0;
-        writing-mode: vertical-rl; transform: rotate(180deg);
+.rail .rail-lab { margin-top: 12px; writing-mode: vertical-rl; transform: rotate(180deg);
         font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
         white-space: nowrap; }
 .side, .evpanel { position: relative; }
@@ -109,6 +108,9 @@ h2 { font-size: .95rem; margin: 0; }
 .ev-card .row { display: flex; align-items: center; gap: 4px; margin-top: 5px; }
 .ev-card .row .sp { flex: 1; }
 .ev-card .btn { width: 20px; height: 20px; padding: 0; font-size: 11px; }
+/* pinned footer: never scrolls with the list */
+.evpanel-foot { flex: 0 0 auto; padding: 10px 12px 12px;
+                border-top: 1px solid var(--border-soft); }
 .sec-head { display: flex; align-items: center; justify-content: space-between;
             margin: 0 0 6px; }
 .sec-head .label { margin: 0; }
@@ -170,7 +172,7 @@ h2 { font-size: .95rem; margin: 0; }
    canvas, distinct from the lighter sidebar/tools around it. */
 /* controls: in-flow, above the table. Left cluster = view, right = ticks/today. */
 .tl-controls { position: relative; display: flex; align-items: center; justify-content: space-between;
-               gap: 12px; padding: 14px 16px 12px; flex-wrap: wrap; }
+               gap: 12px; padding: 16px; flex-wrap: wrap; }   /* symmetric: equal above and below */
 .ctl-left, .ctl-right { display: flex; align-items: center; gap: 6px; }
 .ctl .btn, .ctl.select { height: 34px; }          /* one uniform control height */
 .ctl.select { padding: 0 10px; }
@@ -195,6 +197,9 @@ h2 { font-size: .95rem; margin: 0; }
 .pop-ctl select { width: auto; padding: 3px 8px; font-size: 12px; }
 .pop-ctl input[type=checkbox] { width: auto; accent-color: var(--accent); }
 .pop-hint { font-size: 10px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+.pop-sep { height: 1px; background: var(--border-soft); margin: 8px -14px 2px; }
+.pop-ctl input[type=number] { width: 56px; padding: 3px 6px; font-family: var(--mono);
+                               font-size: 11px; }
 /* slim, centred readout strip — just tall enough for one line */
 .tl-range { padding: 5px 16px; background: var(--panel-2); border-bottom: 1px solid var(--border-soft);
             text-align: center; }
@@ -213,6 +218,12 @@ h2 { font-size: .95rem; margin: 0; }
 /* reference selector in the ruler header — must fit the fixed 46px header */
 .ref-sel { font-size: 11px; padding: 2px 4px; height: 22px; width: 100%;
            background: var(--panel-2); }
+/* bold date inside the ruler, at the crosshair's height */
+.ruler-date { position: sticky; top: 46px; z-index: 7; display: block;
+              width: 100%; text-align: center; font-family: var(--mono);
+              font-size: 10.5px; font-weight: 700; color: var(--text);
+              background: var(--panel); border-top: 1px solid var(--accent-dim);
+              padding: 1px 0; pointer-events: none; }
 
 .col { position: relative; border-right: 1px solid var(--border-soft); flex: 0 0 auto; }
 .col-head { position: sticky; top: 0; z-index: 6; background: var(--panel); padding: 10px 12px;
@@ -256,13 +267,27 @@ h2 { font-size: .95rem; margin: 0; }
            transition: opacity .12s; border: 1px solid var(--border); }
 .readout.on { opacity: 1; }
 
-/* footer legend */
-.legend { display: flex; align-items: center; gap: 14px; padding: 10px 20px;
-          background: var(--panel-2); border-top: 1px solid var(--border-soft);
-          font-size: 11px; color: var(--muted); flex-wrap: wrap;
+/* row 3: cursor coordinates, aligned to the columns */
+.legend { display: flex; align-items: center; background: var(--panel-2);
+          border-top: 1px solid var(--border-soft); font-size: 11px; color: var(--muted);
+          flex-wrap: nowrap; overflow: hidden; min-height: 34px;
           border-radius: 0 0 var(--radius) var(--radius); }
-.legend .k { display: inline-flex; align-items: center; gap: 5px; }
-.legend .sw { width: 8px; height: 8px; border-radius: 2px; }
+.legend .cx { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+              padding: 0 8px; overflow: hidden; }
+.legend .cx-ruler { flex: 0 0 auto; width: var(--ruler-w, 78px); }
+.legend .cxv { font-family: var(--mono); font-size: 11px; white-space: nowrap; }
+.legend .sw { width: 7px; height: 7px; border-radius: 2px; flex: 0 0 auto; }
+
+/* crosshair bubbles: one date per calendar, over its own column */
+.cross-bubbles { position: sticky; left: 0; z-index: 10; display: flex;
+                 pointer-events: none; transform: translateY(-50%); }
+.cross-bubbles .cb { flex: 0 0 auto; text-align: center; overflow: hidden; }
+.cross-bubbles .cbv, .cross-bubbles .cb-ruler {
+  font-family: var(--mono); font-size: 10px; color: var(--text);
+  background: #1e211eee; border: 1px solid var(--border); border-radius: 4px;
+  padding: 1px 4px; white-space: nowrap; display: inline-block; }
+.cross-bubbles .cb-ruler { font-weight: 700; background: var(--panel);
+  border-color: var(--border); min-width: 62px; }
 
 /* ---------- drawer (calendar editor) ---------- */
 .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 40; }

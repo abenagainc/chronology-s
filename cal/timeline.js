@@ -30,6 +30,8 @@
 
   let S = Store.load();
   let PPD = 0.006;                                 // pixels per DAY — the one zoom knob
+  let LAST_CROSS_DAY = null;    // crosshair's day (drives the bubbles + ruler date)
+  let LAST_CURSOR_DAY = null;   // mouse's day (drives row 3)
 
   /* Tick / label settings, driven by the popover. */
   let TICK_DENSITY = 1;      // minor-tick multiplier (0.25 … 4)
@@ -67,37 +69,39 @@
      Returns {step, majorEvery} where majorEvery is how many steps make a labelled
      (major) mark — so a label always exists, whatever the zoom. */
   /* Two separate budgets, deliberately:
-     TICK_PX  — how far apart ticks must be to be DRAWN. Small, so finer tiers
-                appear as you zoom.
-     LABEL_PX — how far apart LABELS must be to be legible. Larger, so text never
-                collides. Decoupling these is what lets "many ticks, few labels". */
+     TICK_PX  — how far apart ticks must be to be DRAWN (minor-tick spacing).
+     LABEL_PX — how far apart LABELS must be to be legible.
+     Decoupling these is what lets "many ticks, few labels". */
   const TICK_PX = 6;
   const LABEL_PX = 80;
-  /* Tick hierarchy, coarse → fine. Each tier is tried in order and used when it
-     fits TICK_PX apart at the current zoom, so zooming in naturally refines the
-     ticks: millennium → century → decade → year → month → day. */
-  const TIERS = ['millennium', 'century', 'decade', 'year', 'month', 'day'];
 
-  /* How many of `unit` fit in the tick budget at the current zoom. */
-  function fits(unitDays) { return unitDays * PPD >= TICK_PX; }
+  /* Which tier is shown is decided by the VISIBLE SPAN, not by a pixel budget —
+     so the thresholds are meaningful and editable in the popover:
+       span < thDay years      → days
+       < thMonth               → months
+       < thYear                → years
+       < thDecade              → decades
+       < thCentury             → centuries
+       otherwise               → millennia                                        */
+  const TH = { day: 2, month: 10, year: 150, decade: 1500, century: 10000 };
 
-  function pickTier(cal) {
-    const yr = 365.2425;
-    if (fits(yr * 1000)) return 'millennium';
-    if (fits(yr * 100)) return 'century';
-    if (fits(yr * 10)) return 'decade';
-    if (fits(yr)) return 'year';
-    if (fits(30.4)) return 'month';
-    return 'day';
+  function pickTier() {
+    const spanYears = DAYS_TOTAL / PPD / 365.2425;
+    if (spanYears < TH.day) return 'day';
+    if (spanYears < TH.month) return 'month';
+    if (spanYears < TH.year) return 'year';
+    if (spanYears < TH.decade) return 'decade';
+    if (spanYears < TH.century) return 'century';
+    return 'millennium';
   }
 
   /* Label for a tick at a given tier. */
   function tierLabel(day, cal, tier) {
     const d = dayToDate(day, cal);
-    if (tier === 'millennium') return yearLabel(Math.floor(d.y / 1000) * 1000, cal.era);
-    if (tier === 'century') return yearLabel(Math.floor(d.y / 100) * 100, cal.era);
-    if (tier === 'decade') return yearLabel(Math.floor(d.y / 10) * 10, cal.era);
-    if (tier === 'year') return yearLabel(d.y, cal.era);
+    if (tier === 'millennium') return yearLabel(Math.floor(d.y / 1000) * 1000, cal);
+    if (tier === 'century') return yearLabel(Math.floor(d.y / 100) * 100, cal);
+    if (tier === 'decade') return yearLabel(Math.floor(d.y / 10) * 10, cal);
+    if (tier === 'year') return yearLabel(d.y, cal);
     if (tier === 'month') return cal.months[d.m - 1]?.name?.slice(0, 3) || d.m;
     return String(d.d);
   }
@@ -119,7 +123,7 @@
 
   function builtinMarks(cal) {
     const out = [];
-    const tier = pickTier(cal);
+    const tier = pickTier();
     const density = TICK_DENSITY;          // user multiplier on minor ticks
     const show = SHOW_LABELS;
     const every = LABEL_EVERY;             // label every Nth major tick
@@ -216,6 +220,11 @@
       rb.appendChild(l);
     }
     ruler.appendChild(rb);
+    // bold date in the ruler, at the crosshair's height (not a bubble)
+    const rd = document.createElement('div');
+    rd.className = 'ruler-date';
+    rd.id = 'rulerDate';
+    ruler.appendChild(rd);
     frag.appendChild(ruler);
 
     /* --- one column per VISIBLE calendar --- */
@@ -273,16 +282,79 @@
     // move. The overlay is positioned against the scroll viewport, so the line
     // stays where it is put.
 
-    renderLegend();
+    renderCrossBubbles();
+    renderCoords();
     updateRange();
     moveCrosshair();
   }
 
-  function renderLegend() {
-    const items = [`<span class="k"><i class="sw" style="background:#8e8e93"></i>ruler: <span id="legendRef">${esc((BY_ID[REF_ID] || BY_ID.gregorian || {}).name || 'Gregorian')}</span> (reference)</span>`]
-      .concat((window.calVisible ? window.calVisible() : S.calendars).map(c =>
-        `<span class="k"><i class="sw" style="background:${c.color}"></i>${esc(c.name)}</span>`));
-    $('legendCals').innerHTML = items.join('');
+  /* Row 3 = the CURSOR coordinates: one date per visible calendar, each laid out
+     over its own column so it lines up with the crosshair bubbles above. */
+  function renderCoords() {
+    const row = $('coordRow');
+    if (!row) return;
+    const vis = visibleCals();
+    const cells = [`<span class="cx cx-ruler"><i class="sw" style="background:#8e8e93"></i><span
+        class="cxv" id="cxRuler">—</span></span>`]
+      .concat(vis.map(c =>
+        `<span class="cx" style="width:${COLW}px"><i class="sw" style="background:${c.color}"></i>
+           <span class="cxv" data-cal="${esc(c.id)}">—</span></span>`));
+    row.innerHTML = cells.join('');
+    row.style.paddingLeft = RULER_W + 'px';
+    updateCursorCoords(LAST_CURSOR_DAY);
+  }
+
+  /* The crosshair readout: a thin bubble ON the line, one date per calendar,
+     positioned over its own column. Plus a bold date inside the ruler. */
+  function renderCrossBubbles() {
+    const inner = $('vt-inner');
+    let b = $('crossBubbles');
+    if (b) b.remove();
+    b = document.createElement('div');
+    b.id = 'crossBubbles';
+    b.className = 'cross-bubbles';
+    b.style.left = RULER_W + 'px';
+    const vis = visibleCals();
+    b.innerHTML = [`<span class="cb-ruler" id="cbRuler"></span>`]
+      .concat(vis.map(c =>
+        `<span class="cb" style="width:${COLW}px"><span class="cbv" data-cal="${esc(c.id)}">—</span></span>`))
+      .join('');
+    inner.appendChild(b);
+    updateCrossBubbles(LAST_CROSS_DAY);
+  }
+
+  function updateCrossBubbles(day) {
+    const b = $('crossBubbles');
+    if (b) {
+      const vis = visibleCals();
+      b.querySelectorAll('.cbv').forEach(el => {
+        const c = BY_ID[el.dataset.cal] || S.calendars.find(x => x.id === el.dataset.cal);
+        el.textContent = (c && day !== null) ? safeFormatDay(day, c) : '—';
+      });
+      const cr = $('cbRuler');
+      const ref = BY_ID[REF_ID] || BY_ID.gregorian;
+      if (cr && ref) cr.textContent = day === null ? '—' : safeFormatDay(day, ref);
+    }
+    // bold date inside the ruler, at the crosshair's y
+    const rd = $('rulerDate');
+    const refC = BY_ID[REF_ID] || BY_ID.gregorian;
+    if (rd && refC) {
+      rd.textContent = day === null ? '' : safeFormatDay(day, refC);
+      const c = $('cross');
+      if (c) rd.style.top = c.style.top;
+    }
+  }
+
+  function updateCursorCoords(day) {
+    const row = $('coordRow');
+    if (!row) return;
+    const ref = BY_ID[REF_ID] || BY_ID.gregorian;
+    const rr = $('cxRuler');
+    if (rr && ref) rr.textContent = day === null ? '—' : safeFormatDay(day, ref);
+    row.querySelectorAll('.cxv[data-cal]').forEach(el => {
+      const c = BY_ID[el.dataset.cal] || S.calendars.find(x => x.id === el.dataset.cal);
+      el.textContent = (c && day !== null) ? safeFormatDay(day, c) : '—';
+    });
   }
 
   /** Push the label-size setting onto every label element. */
@@ -305,14 +377,14 @@
     const s = sc();
     const c = ensureCrosshair();
     // The crosshair is a child of #vt-scroll, so its `top` is in VIEWPORT
-    // coordinates. The day map is in column-BODY coordinates, which sit
-    // bodyOffset() lower — convert through that so the readout always agrees
-    // with the line on screen.
-    const viewY = parseFloat(c.style.top);
-    if (!Number.isFinite(viewY)) return;
+    // coordinates; the day map is in column-body coordinates.
+    const viewY = s.scrollTop + s.clientHeight / 2;
+    c.style.top = viewY + 'px';
+    // the crosshair persists: it is only ever repositioned, never hidden
+    c.style.display = '';
     const day = Math.round(px2day(viewY - bodyOffset()));
-    $('readout').textContent = visibleCals().map(cal => safeFormatDay(day, cal)).join('   ·   ');
-    $('readout').classList.add('on');
+    LAST_CROSS_DAY = day;
+    updateCrossBubbles(day);
   }
 
   /** Place the crosshair at a viewport y (used by scroll + zoom). */
@@ -375,13 +447,30 @@
     /* --- tick / label popover --- */
     const pop = $('tickPop'), tickBtn = $('tickBtn');
     if (tickBtn && pop) {
-      tickBtn.onclick = (e) => { e.stopPropagation(); pop.hidden = !pop.hidden; };
+      tickBtn.onclick = (e) => {
+        e.stopPropagation();
+        pop.hidden = !pop.hidden;
+        if (!pop.hidden) updateTierActive();
+      };
       pop.addEventListener('click', (e) => e.stopPropagation());
       document.addEventListener('click', () => { pop.hidden = true; });
       $('tickDensity').oninput = (e) => { TICK_DENSITY = +e.target.value; render(); };
       $('labelEvery').oninput = (e) => { LABEL_EVERY = +e.target.value; render(); };
       $('labelSize').onchange = (e) => { LABEL_SIZE = +e.target.value; applyLabelSize(); render(); };
       $('showLabels').onchange = (e) => { SHOW_LABELS = e.target.checked; render(); };
+      const th = [['thDay', 'day'], ['thMonth', 'month'], ['thYear', 'year'],
+                  ['thDecade', 'decade'], ['thCentury', 'century']];
+      th.forEach(([id, key]) => {
+        const el = $(id);
+        if (el) el.onchange = (e) => {
+          TH[key] = Math.max(0.01, +e.target.value || TH[key]);
+          updateTierActive(); render();
+        };
+      });
+    }
+    function updateTierActive() {
+      const el = $('tierActive');
+      if (el) el.textContent = `now: ${pickTier()} ticks`;
     }
     /* --- ruler reference selector (delegated: render() rebuilds the ruler) --- */
     const inner0 = $('vt-inner');
@@ -413,19 +502,21 @@
     $('resetBtn').onclick = () => {
       if (confirm('Reset all dummy data to the original seed?')) { S = Store.reset(); render(); }
     };
+    /* Two independent readouts:
+       - pointermove drives ROW 3 (the cursor coordinates)
+       - scroll/zoom drives the CROSSHAIR bubbles
+       The crosshair is NOT moved by the mouse, and it never disappears. */
     s.addEventListener('pointermove', e => {
       const r = s.getBoundingClientRect();
-      // pointer -> viewport y -> body y -> day
       const viewY = e.clientY - r.top;
-      const bodyY = viewY - bodyOffset();
-      const day = Math.round(px2day(bodyY));
-      const ro = $('readout');
-      ro.textContent = visibleCals().map(cal => safeFormatDay(day, cal)).join('   ·   ');
-      ro.classList.add('on');
-      const c = ensureCrosshair();
-      c.style.top = viewY + 'px';          // viewport coordinates
+      const day = Math.round(px2day(viewY - bodyOffset()));
+      LAST_CURSOR_DAY = day;
+      updateCursorCoords(day);
     });
-    s.addEventListener('pointerleave', () => { $('readout').classList.remove('on'); moveCrosshair(); });
+    s.addEventListener('pointerleave', () => {
+      // keep the crosshair; just stop tracking the cursor
+      moveCrosshair();
+    });
   }
 
   function init() {

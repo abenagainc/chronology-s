@@ -88,23 +88,25 @@ console.log('\n[1] Timeline geometry (index.html)');
 }
 
 /* ========================================================================== */
-console.log('\n[2] Calendar CRUD (calendars.html)');
+console.log('\n[2] Calendar CRUD (drawer on index.html)');
 {
-  const page = makePage('calendars.html');
-  const X = load(page, [...ENGINE, 'cal/calendars.js']);
+  const page = makePage('index.html');
+  const X = load(page, [...ENGINE, 'cal/timeline.js', 'cal/editor.js', 'cal/eventeditor.js',
+                        'cal/panels.js', 'cal/sidebar.js']);
+  page.window.CalEditor.bind();
   const d = page.doc, w = page.window;
 
-  const before = d.querySelectorAll('#calList .card').length;
-  ok(before === 2, 'seed shows 2 calendars', before + ' cards');
+  const before = d.querySelectorAll('#calList .cal-item').length;
+  ok(before === 2, 'seed shows 2 calendars', before + ' rows');
 
-  // create
-  d.getElementById('newCalBtn').click();
+  // create through the CUSTOM section's add button
+  d.querySelectorAll('.sec-head .btn')[1].click();
   ok(d.getElementById('drawer').hidden === false, 'editor opens');
   d.getElementById('fName').value = 'Test Republic';
   d.getElementById('fName').dispatchEvent(new w.Event('input', { bubbles: true }));
   d.getElementById('saveBtn').click();
-  const after = d.querySelectorAll('#calList .card').length;
-  ok(after === before + 1, 'create adds a calendar', after + ' cards (was ' + before + ')');
+  const after = d.querySelectorAll('#calList .cal-item').length;
+  ok(after === before + 1, 'create adds a calendar without a reload', after + ' rows (was ' + before + ')');
   ok(!/epoch date is not valid/.test(d.getElementById('fErr').textContent), 'no epoch error on save');
 
   const saved = X.Store.load().calendars;
@@ -113,7 +115,6 @@ console.log('\n[2] Calendar CRUD (calendars.html)');
   if (created) {
     ok(Number.isFinite(created.epochDay), 'created epoch resolves to a finite day', 'epochDay=' + created.epochDay);
     ok(created.months.length > 0, 'created calendar has months', created.months.length + ' months');
-    // it must be convertible: reload the registry so the new id is registered
     X.registerCalendars(X.Store.load().calendars);
     const live = X.BY_ID[created.id];
     let probe; try { probe = JSON.stringify(X.dayToDate(created.epochDay, live)); }
@@ -123,7 +124,7 @@ console.log('\n[2] Calendar CRUD (calendars.html)');
 
   // edit
   const idx = saved.findIndex(c => c.name === 'Test Republic');
-  const editBtn = [...d.querySelectorAll('#calList .card')][idx]?.querySelector('[data-a=edit]');
+  const editBtn = [...d.querySelectorAll('#calList .cal-item')][idx]?.querySelector('[data-a=edit]');
   ok(!!editBtn, 'edit button present for new calendar');
   if (editBtn) {
     editBtn.click();
@@ -135,8 +136,8 @@ console.log('\n[2] Calendar CRUD (calendars.html)');
   }
 
   // delete
-  const afterEdit = [...d.querySelectorAll('#calList .card')];
-  const delBtn = afterEdit.find(c => c.querySelector('.name').textContent === 'Test Republic v2')?.querySelector('[data-a=del]');
+  const afterEdit = [...d.querySelectorAll('#calList .cal-item')];
+  const delBtn = afterEdit.find(c => c.querySelector('.t').textContent === 'Test Republic v2')?.querySelector('[data-a=del]');
   ok(!!delBtn, 'delete button present');
   if (delBtn) {
     delBtn.click();
@@ -146,20 +147,21 @@ console.log('\n[2] Calendar CRUD (calendars.html)');
 }
 
 /* ========================================================================== */
-console.log('\n[3] Event CRUD (events.html)');
+console.log('\n[3] Event CRUD (drawer on index.html)');
 {
-  const page = makePage('events.html');
-  // the page fetches the shared drawer at runtime; inject it directly here
+  const page = makePage('index.html');
   page.doc.body.insertAdjacentHTML('beforeend',
     fs.readFileSync(path.join(ROOT, 'cal/event-drawer.html'), 'utf8'));
-  const X = load(page, [...ENGINE, 'cal/eventeditor.js', 'cal/events.js']);
+  const X = load(page, [...ENGINE, 'cal/timeline.js', 'cal/editor.js', 'cal/eventeditor.js',
+                        'cal/panels.js', 'cal/sidebar.js']);
+  page.window.CalEditor.bind();
   page.window.EventEditor.bind();
   const d = page.doc, w = page.window;
 
-  const rowsBefore = d.querySelectorAll('#evtTable tbody tr').length;
-  ok(rowsBefore > 0, 'events table renders', rowsBefore + ' rows');
+  const before = d.querySelectorAll('.ev-card').length;
+  ok(before > 0, 'events panel renders', before + ' cards');
 
-  d.getElementById('newEvtBtn').click();
+  d.getElementById('evAddBtn').click();
   d.getElementById('etitle').value = 'Verification event';
   d.getElementById('ey').value = '2000';
   d.getElementById('ed').value = '1';
@@ -172,8 +174,8 @@ console.log('\n[3] Event CRUD (events.html)');
   ok(!!made, 'event created', evs.length + ' events');
   ok(made && made.date.y === 2000, 'event stores the native year');
   ok(!/NaN/.test(d.getElementById('econv').textContent || ''), 'conversion preview has no NaN');
-  const rowsAfter = d.querySelectorAll('#evtTable tbody tr').length;
-  ok(rowsAfter === rowsBefore + 1, 'new event appears in the table', rowsAfter + ' rows');
+  const after = d.querySelectorAll('.ev-card').length;
+  ok(after === before + 1, 'new event appears in the panel', after + ' cards');
 }
 
 /* ========================================================================== */

@@ -105,10 +105,17 @@ function validDate(y, m, d, cal) {
 }
 
 /* --- formatting ----------------------------------------------------------- */
-function yearLabel(y, era) {
+/* Era abbreviations are a property of the CALENDAR, not a global constant:
+   the Gregorian column says BCE/CE, the Hijri column says BH/AH. `era` still
+   selects the numbering style (ce = no year zero, astro = year zero exists). */
+function eraBefore(cal) { return cal.eraBefore || 'BCE'; }
+function eraAfter(cal) { return cal.eraAfter || 'CE'; }
+
+function yearLabel(y, cal) {
+  const era = (cal && cal.era) || 'ce';
   if (era === 'astro') return String(y);
-  if (y >= 1) return String(y);
-  return (1 - y) + ' BCE';          // era 'ce': no suffix duplication — the caller owns it
+  if (y >= 1) return eraAfter(cal) === 'CE' ? String(y) : String(y);
+  return (1 - y) + ' ' + eraBefore(cal);
 }
 function formatDate(y, m, d, cal) {
   let s = cal.format || 'YYYY-MM-DD';
@@ -119,12 +126,13 @@ function formatDate(y, m, d, cal) {
   s = s.replace(/DD/g, pad(d, 2)).replace(/D\b/g, String(d));
   return s;                                   // era suffix is a display-layer choice
 }
-/** Render a date in a calendar's own format, with the era named explicitly. */
+/** Render a date in a calendar's own format, with its own era abbreviations. */
 function formatDay(day, cal) {
   const r = dayToDate(day, cal);
   const s = formatDate(r.y, r.m, r.d, cal);
-  if (cal.era === 'ce' && r.y < 1) return s + ' BCE';
-  return s;
+  if ((cal.era || 'ce') !== 'ce') return s;
+  if (r.y < 1) return s + ' ' + eraBefore(cal);
+  return eraAfter(cal) === 'CE' ? s : s + ' ' + eraAfter(cal);
 }
 
 /* --- built-ins ------------------------------------------------------------ */
@@ -148,6 +156,7 @@ function hijriCal() {
   return { id: 'hijri', name: 'Proleptic Hijri (tabular)', kind: 'builtin', color: '#3f9d6b',
     note: 'Tabular (arithmetic) Islamic calendar — not moon-sighted; runs ahead of observed dates.',
     era: 'ce', format: 'DD/MM/YYYY',
+    eraBefore: 'BH', eraAfter: 'AH',     // before/after the Hijra
     months, leapMonths: [{ name: 'Leap day', days: 1, afterMonth: 11 }],
     leap: { kind: 'custom', cycle: 30, years: HIJRI_LEAP },
     // AH 1/1/1 = 16 July 622 CE *Julian* (civil epoch). Stated as a JDN so this

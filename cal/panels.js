@@ -134,6 +134,8 @@ window.EventsPanel = (() => {
 
   const sel = document.getElementById('evFilter');
   if (sel) sel.onchange = (e) => { filter = e.target.value; render(); };
+  const add = document.getElementById('evAddBtn');
+  if (add) add.onclick = () => { if (window.EventEditor) window.EventEditor.open(null); };
 
   ['cal-changed', 'cal-visibility', 'panels-changed'].forEach(ev =>
     window.addEventListener(ev, refresh));

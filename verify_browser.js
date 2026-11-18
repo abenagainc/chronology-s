@@ -91,10 +91,14 @@ async function main() {
 
     // today
     o.rangeBefore = q('#range').textContent.trim();
-    o.readoutBefore = q('#readout').textContent;
+    o.readoutBefore = q('#rulerDate') ? q('#rulerDate').textContent : '';
     q('#todayBtn').click();
     o.rangeAfter = q('#range').textContent.trim();
-    o.readoutAfter = q('#readout').textContent;
+    o.readoutAfter = q('#rulerDate') ? q('#rulerDate').textContent : '';
+    o.bubbles = q('#crossBubbles')
+      ? [...q('#crossBubbles').querySelectorAll('.cbv')].map(e => e.textContent) : [];
+    o.row3 = q('#coordRow')
+      ? [...q('#coordRow').querySelectorAll('.cxv')].map(e => e.textContent) : [];
     const cross = q('#cross');
     o.crossTop = cross ? +cross.getBoundingClientRect().top.toFixed(2) : null;
     const todayEv = qa('.ev').find(e => e.textContent.includes('Today'));
@@ -124,7 +128,9 @@ async function main() {
   console.log('\n[today button]');
   console.log('  range before :', snap.rangeBefore);
   console.log('  range after  :', snap.rangeAfter);
-  console.log('  readout after:', snap.readoutAfter);
+  console.log('  crosshair ruler date:', snap.readoutAfter);
+  console.log('  bubbles:', (snap.bubbles||[]).join(' | '));
+  console.log('  row 3 cells:', (snap.row3||[]).join(' | '));
   console.log('  crosshair top:', snap.crossTop, ' Today event top:', snap.todayEvTop,
               ' delta:', snap.crossVsEvent);
   ok(/2026|2027/.test(snap.readoutAfter), 'readout shows a current-era date', snap.readoutAfter);

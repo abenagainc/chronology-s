@@ -5,23 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chronology S — Calendars</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='4' fill='%23d1e7d1'/></svg>">
-<link rel="stylesheet" href="cal/styles.css?cb=9">
+<link rel="stylesheet" href="cal/styles.css?cb=10">
 </head>
 <body>
 <div class="app">
 
   <header class="topbar">
     <div class="brand">
-      <span class="mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round">
-          <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
-        </svg>
-      </span>
       <span class="name">Chronology S</span>
     </div>
     <nav class="tabs">
       <a class="on" href="index.html">Timeline</a>
-      <a href="events.html">Events</a>
     </nav>
     <div class="spacer"></div>
     <span class="chip">dummy data</span>
@@ -51,6 +45,9 @@
         </select>
       </div>
       <div class="evpanel-body" id="evList"></div>
+      <div class="evpanel-foot">
+        <button class="btn primary" id="evAddBtn" style="width:100%">＋ Add event</button>
+      </div>
     </section>
     <button class="rail" id="railEv" title="Events"><span class="rail-lab">Events</span><span class="rail-arrow">›</span></button>
 
@@ -104,8 +101,26 @@
             <span class="pop-lab">Show year labels</span>
             <span class="pop-ctl"><input type="checkbox" id="showLabels" checked></span>
           </div>
-          <div class="pop-hint">Density adds tick lines; Labels control how many of
-            them carry text. Ticks are year / month / day, chosen by zoom.</div>
+          <div class="pop-sep"></div>
+          <div class="pop-hint" style="margin-top:2px">Show a tier when the view spans less than…
+            <span id="tierActive" style="display:block;margin-top:4px;color:var(--text)"></span></div>
+          <div class="pop-row"><span class="pop-lab">days</span>
+            <span class="pop-ctl"><input type="number" id="thDay" min="0.01" step="0.5" value="2"
+                 style="width:56px"> years</span></div>
+          <div class="pop-row"><span class="pop-lab">months</span>
+            <span class="pop-ctl"><input type="number" id="thMonth" min="1" step="1" value="10"
+                 style="width:56px"> years</span></div>
+          <div class="pop-row"><span class="pop-lab">years</span>
+            <span class="pop-ctl"><input type="number" id="thYear" min="10" step="10" value="150"
+                 style="width:56px"> years</span></div>
+          <div class="pop-row"><span class="pop-lab">decades</span>
+            <span class="pop-ctl"><input type="number" id="thDecade" min="100" step="100" value="1500"
+                 style="width:56px"> years</span></div>
+          <div class="pop-row"><span class="pop-lab">centuries</span>
+            <span class="pop-ctl"><input type="number" id="thCentury" min="1000" step="1000" value="10000"
+                 style="width:56px"> years</span></div>
+          <div class="pop-row"><span class="pop-lab">millennia</span>
+            <span class="pop-ctl muted">beyond</span></div>
         </div>
       </div>
 
@@ -116,12 +131,8 @@
         <!-- row 2: the timeline -->
         <div id="vt-scroll"><div id="vt-inner"></div></div>
 
-        <!-- row 3: legend -->
-        <div class="legend">
-          <span class="k"><i class="sw" style="background:#8e8e93"></i>ruler: <span id="legendRef">Gregorian</span> (reference)</span>
-          <span class="k" id="legendCals"></span>
-          <span class="k" style="margin-left:auto">one day = one height across every calendar</span>
-        </div>
+        <!-- row 3: coordinates (one per calendar, aligned to the columns) -->
+        <div class="legend" id="coordRow"></div>
       </div>
     </main>
   </div>
