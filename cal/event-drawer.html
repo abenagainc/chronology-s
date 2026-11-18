@@ -1,48 +1,48 @@
 <!-- event drawer -->
-<div class="scrim" id="scrim" hidden></div>
-<aside class="drawer" id="drawer" hidden aria-label="Event editor" style="display:none">
+<div class="scrim" id="escrim" hidden></div>
+<aside class="drawer" id="edrawer" hidden aria-label="Event editor" style="display:none">
   <div class="drawer-head">
-    <h2 id="drawerTitle">Event</h2>
-    <button class="btn ghost" id="drawerClose">✕</button>
+    <h2 id="edrawerTitle">Event</h2>
+    <button class="btn ghost" id="edrawerClose">✕</button>
   </div>
   <div class="drawer-body">
-    <label class="fld"><span>Title</span><input id="eTitle" type="text"></label>
+    <label class="fld"><span>Title</span><input id="etitle" type="text"></label>
     <div class="row2">
-      <label class="fld"><span>Calendar</span><select id="eCal"></select></label>
+      <label class="fld"><span>Calendar</span><select id="ecal"></select></label>
       <label class="fld"><span>Kind</span>
-        <select id="eKind">
+        <select id="ekind">
           <option value="point">point (a day)</option>
           <option value="span">span (from → to)</option>
         </select></label>
     </div>
     <div class="fld">
-      <span>Native date — <span id="eCalName" class="muted"></span></span>
+      <span>Native date — <span id="ecalName" class="muted"></span></span>
       <div class="inline">
-        <input id="eY" type="number" step="1" style="width:90px">
-        <select id="eM" style="width:auto"></select>
-        <input id="eD" type="number" min="1" max="31" style="width:80px">
+        <input id="ey" type="number" step="1" style="width:90px">
+        <select id="em" style="width:auto"></select>
+        <input id="ed" type="number" min="1" max="31" style="width:80px">
       </div>
-      <small class="muted" id="eHint"></small>
-      <small class="err" id="eErr"></small>
+      <small class="muted" id="ehint"></small>
+      <small class="err" id="eerr"></small>
     </div>
-    <div class="fld" id="eEndFld" hidden>
+    <div class="fld" id="eendFld" hidden>
       <span>End date</span>
       <div class="inline">
-        <input id="eY2" type="number" step="1" style="width:90px">
-        <select id="eM2" style="width:auto"></select>
-        <input id="eD2" type="number" min="1" max="31" style="width:80px">
+        <input id="ey2" type="number" step="1" style="width:90px">
+        <select id="em2" style="width:auto"></select>
+        <input id="ed2" type="number" min="1" max="31" style="width:80px">
       </div>
     </div>
     <div class="fld">
       <span>Converted — every calendar, in its own numbering</span>
-      <div class="conv" id="eConv"></div>
+      <div class="conv" id="econv"></div>
     </div>
-    <label class="fld"><span>Note</span><input id="eNote" type="text" placeholder="optional"></label>
+    <label class="fld"><span>Note</span><input id="enote" type="text" placeholder="optional"></label>
   </div>
   <div class="drawer-foot">
-    <button class="btn danger" id="delBtn" hidden>delete</button>
+    <button class="btn danger" id="edelBtn" hidden>delete</button>
     <div class="spacer"></div>
-    <button class="btn" id="cancelBtn">cancel</button>
-    <button class="btn primary" id="saveBtn">save</button>
+    <button class="btn" id="ecancelBtn">cancel</button>
+    <button class="btn primary" id="esaveBtn">save</button>
   </div>
 </aside>

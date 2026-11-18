@@ -160,18 +160,18 @@ console.log('\n[3] Event CRUD (events.html)');
   ok(rowsBefore > 0, 'events table renders', rowsBefore + ' rows');
 
   d.getElementById('newEvtBtn').click();
-  d.getElementById('eTitle').value = 'Verification event';
-  d.getElementById('eY').value = '2000';
-  d.getElementById('eD').value = '1';
-  d.getElementById('eTitle').dispatchEvent(new w.Event('input', { bubbles: true }));
-  d.getElementById('eY').dispatchEvent(new w.Event('input', { bubbles: true }));
-  d.getElementById('saveBtn').click();
+  d.getElementById('etitle').value = 'Verification event';
+  d.getElementById('ey').value = '2000';
+  d.getElementById('ed').value = '1';
+  d.getElementById('etitle').dispatchEvent(new w.Event('input', { bubbles: true }));
+  d.getElementById('ey').dispatchEvent(new w.Event('input', { bubbles: true }));
+  d.getElementById('esaveBtn').click();
 
   const evs = X.Store.load().events;
   const made = evs.find(e => e.title === 'Verification event');
   ok(!!made, 'event created', evs.length + ' events');
   ok(made && made.date.y === 2000, 'event stores the native year');
-  ok(!/NaN/.test(d.getElementById('eConv').textContent || ''), 'conversion preview has no NaN');
+  ok(!/NaN/.test(d.getElementById('econv').textContent || ''), 'conversion preview has no NaN');
   const rowsAfter = d.querySelectorAll('#evtTable tbody tr').length;
   ok(rowsAfter === rowsBefore + 1, 'new event appears in the table', rowsAfter + ' rows');
 }
