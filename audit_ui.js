@@ -61,7 +61,7 @@ async function main() {
 
     // 3. contrast sanity: text must not be near-invisible on its panel
     const lum = c => { const m = c.match(/\\d+/g).map(Number); return 0.2126*m[0]+0.7152*m[1]+0.0722*m[2]; };
-    for (const sel of ['.brand .name', '.side .label', '.main-head h1', '.main-head .sub', '.col-head', '.ruler-lab', '.legend']) {
+    for (const sel of ['.brand .name', '.side .label', '.tl-range .range', '.col-head', '.ruler-lab', '.legend']) {
       const el = q(sel); if (!el) { issues.push('missing: ' + sel); continue; }
       const s = cs(el);
       const fg = lum(s.color), bgc = lum(s.backgroundColor === 'rgba(0, 0, 0, 0)' ? '0,0,0' : s.backgroundColor);

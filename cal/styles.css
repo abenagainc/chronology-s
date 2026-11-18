@@ -99,8 +99,10 @@ h2 { font-size: .95rem; margin: 0; }
 .main-head .sub { color: var(--muted); font-size: 15px; margin-top: 6px; }
 .main-head .row { display: flex; align-items: center; gap: 10px; }
 .main-head .nav { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+/* the toolbar select must hug its content — the generic input/select width:100%
+   rule otherwise makes it 900px wide and wraps the whole toolbar */
 .select { font: inherit; font-size: 13px; padding: 7px 12px; border-radius: var(--radius-sm);
-          border: 1px solid #555; background: transparent; color: var(--text); }
+          border: 1px solid #555; background: transparent; color: var(--text); width: auto; }
 
 /* ---------- timeline ---------- */
 /* The timeline sits in its own inset panel: rounded corners on the darker
@@ -112,6 +114,10 @@ h2 { font-size: .95rem; margin: 0; }
             background: var(--panel-2); border-bottom: 1px solid var(--border-soft);
             flex-wrap: wrap; }
 .tl-tools .range { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+/* slim, centred readout strip — just tall enough for one line */
+.tl-range { padding: 5px 16px; background: var(--panel-2); border-bottom: 1px solid var(--border-soft);
+            text-align: center; }
+.tl-range .range { font-family: var(--mono); font-size: 11px; color: var(--muted); }
 #vt-scroll { flex: 1; overflow: auto; position: relative; background: var(--bg);
              border-radius: 0 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px); }
 #vt-inner { position: relative; display: flex; min-width: max-content; }
@@ -188,7 +194,9 @@ h2 { font-size: .95rem; margin: 0; }
               font-weight: 600; }
 input, select { font: inherit; font-size: 13px; padding: 8px 11px; border: 1px solid #555;
                 border-radius: var(--radius-sm); background: var(--panel-2); color: var(--text);
-                width: 100%; }
+                width: auto; }
+/* form fields inside the drawers/tables fill their column; toolbar selects hug */
+.fld input, .fld select, .months input, .tbl input, .tbl select { width: 100%; }
 input[type="color"] { padding: 2px; height: 34px; width: 52px; }
 input[type="radio"] { width: auto; }
 .stack { display: flex; flex-direction: column; gap: 6px; }

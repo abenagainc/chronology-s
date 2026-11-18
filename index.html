@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chronology S — Calendars</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='4' fill='%23d1e7d1'/></svg>">
-<link rel="stylesheet" href="cal/styles.css">
+<link rel="stylesheet" href="cal/styles.css?cb=4">
 </head>
 <body>
 <div class="app">
@@ -45,28 +45,6 @@
 
     <!-- ============ right: timeline ============ -->
     <main class="main">
-      <div class="main-head">
-        <div class="row">
-          <div>
-            <h1>One moment, many dates</h1>
-            <div class="sub" id="todayLine">—</div>
-          </div>
-          <div class="nav">
-            <button class="btn icon" id="up" title="Earlier">↑</button>
-            <button class="btn icon" id="down" title="Later">↓</button>
-            <select class="select" id="zoomSel" title="Zoom">
-              <option value="fit">Fit all</option>
-              <option value="millennia">Millennia</option>
-              <option value="centuries">Centuries</option>
-              <option value="years" selected>Years</option>
-              <option value="months">Months</option>
-              <option value="days">Days</option>
-            </select>
-            <button class="btn" id="todayBtn">Today</button>
-          </div>
-        </div>
-      </div>
-
       <div class="tl-panel">
         <div class="tl-tools">
           <button class="btn sm" id="zin">＋</button>
@@ -74,8 +52,21 @@
           <span class="sep" style="width:1px;height:18px;background:var(--border)"></span>
           <button class="btn sm" id="left">← calendars</button>
           <button class="btn sm" id="right">→ calendars</button>
-          <span class="range" id="range">—</span>
+          <span class="sep" style="width:1px;height:18px;background:var(--border)"></span>
+          <button class="btn icon" id="up" title="Earlier">↑</button>
+          <button class="btn icon" id="down" title="Later">↓</button>
+          <select class="select" id="zoomSel" title="Zoom">
+            <option value="fit">Fit all</option>
+            <option value="millennia">Millennia</option>
+            <option value="centuries">Centuries</option>
+            <option value="years" selected>Years</option>
+            <option value="months">Months</option>
+            <option value="days">Days</option>
+          </select>
+          <button class="btn" id="todayBtn">Today</button>
         </div>
+
+        <div class="tl-range"><span class="range" id="range">—</span></div>
 
         <div id="vt-scroll"><div id="vt-inner"></div></div>
 

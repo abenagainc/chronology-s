@@ -285,9 +285,6 @@
     const n = new Date();
     const today = gregorianToDay(n.getFullYear(), n.getMonth() + 1, n.getDate());
     PPD = 2.2 / 365.2425;                   // absolute: ~2.2 px per year
-    $('todayLine').textContent =
-      `${n.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-       · ${visibleCals().length} of ${S.calendars.length} calendars shown`;
     render();
     s.scrollTop = Math.max(bodyOffset() + day2px(today) - s.clientHeight * .35, 0);
     bind();
