@@ -4,51 +4,55 @@ Agreed 2026-11-17. Abe refers to these by number; the agent must map them to the
 DOM without asking again. **When reporting a change or a bug, cite the region
 number** so Abe can say "row 2 is too tall" and be understood.
 
-## Level 0 — the page
+> **RENUMBERED 2026-11-17** — an events panel is being inserted between the
+> calendar list and the timeline, so everything from the old region 3 onward
+> shifts by one. Earlier notes that say "region 3" mean **region 4** now.
+
+## Level 0 — the page (current)
 
 | # | region | DOM | notes |
 |---|--------|-----|-------|
 | **0** | background | `body` | the outer canvas, darker than everything inside it |
 | **1** | header bar | `.topbar` | brand "Chronology S", tabs (Timeline / Events), `dummy data` chip, **reset** |
-| **2** | left column | `.side` | calendar list: show/hide checkbox, name + subtitle, hover edit/duplicate/delete, `＋ Add calendar`, then the `VIEW` block |
-| **3** | right column | `.main` | everything on the right |
+| **2** | left column | `.side` | calendar list: show/hide checkbox, colour swatch, name, actions. Two sections (CALENDARS / CUSTOM), each with its own add button. **Collapsible — minimisable to give region 4 more room.** |
+| **3** | events panel | *(new — to build)* | between region 2 and region 4. **Expandable and collapsible.** Holds the events list. |
+| **4** | right column | `.main` | the timeline component and its controls |
 
-## Level 1 — the timeline component (inserted in region 3)
+### Old → new
 
-The timeline is a component with its own rows. Called **"the timeline"** or
-**"row N"**.
+| old | new | what |
+|-----|-----|------|
+| 2 | **2** | left column (unchanged) |
+| — | **3** | events panel (new) |
+| 3 | **4** | right column |
+
+## Level 1 — the timeline component (inserted in region 4)
+
+Called **"the timeline"** or **"row N"**.
 
 | row | region | DOM | contents |
 |-----|--------|-----|----------|
-| **row 1** | controls | `.tl-tools` | `＋ －` \| `← calendars →` \| `↑ ↓ [Years] Today` |
-| **row 2** | viewing coordinates | `.tl-range` | `viewing … → … · px/day · px/year` — slim, centred |
-| **row 3** | timeline | `#vt-scroll` | year ruler + one column per calendar, scrolls |
-| **row 4** | legend | `.legend` | ruler note, calendar swatches, "one day = one height" |
+| **row 1** | coordinates | `.tl-range` | `viewing … → … · px/day · px/year` — slim, centred |
+| **row 2** | the timeline | `#vt-scroll` | the ruler + one column per calendar |
+| **row 3** | legend | `.legend` | ruler note, calendar swatches, "one day = one height" |
 
-Row 3 is split into two named parts:
+Controls (`.tl-controls`) sit **outside** the table, in-flow above it — not a row.
+
+Row 2 is split into two named parts:
 
 | part | DOM | notes |
 |------|-----|-------|
-| **the ruler** | `.ruler` | the left strip inside row 3 holding the Gregorian year labels. Always Gregorian (reference). Pinned left while the columns scroll horizontally. |
+| **the ruler** | `.ruler` | the left strip inside row 2. Carries the reference selector (`#refSel`) and the year labels. A reference frame, never a data column. |
 | **a calendar column** | `.col` | one per calendar, **called by its own name** — "the Gregorian column", "the Hijri column", "the Julian column". Never "column 1/2/3". |
 
-So row 3 = the ruler + N calendar columns. Saying "the Hijri column" means that
-calendar's `.col`; saying "the ruler" means `.ruler`.
-
-Two things that live *over* row 3 (not parts of it): the **crosshair** (`.cross`,
-pinned to the scroll viewport) and the **hover readout** (`.readout`, fixed to the
-window). Refer to them by those names.
-
-## Confirmed
-
-Abe's slip ("3 is the column on the left, sorry, 2 …") was corrected and
-confirmed: **2 = left column, 3 = right column.**
+Two things live *over* row 2: the **crosshair** (`.cross`, pinned to the scroll
+viewport) and the **hover readout** (`.readout`, fixed to the window).
 
 ## Where these live in code
 
-- `index.html` — regions 1, 2, 3 and the timeline rows
-- `cal/styles.css` — `.topbar`, `.side`, `.main`, `.tl-panel`, `.tl-tools`,
-  `.tl-range`, `#vt-scroll`, `.legend`
-- `cal/timeline.js` — row 3 (and the crosshair overlay inside it)
+- `index.html` — regions 1, 2, 4 and the timeline rows
+- `cal/styles.css` — `.topbar`, `.side`, `.main`, `.tl-controls`, `.tl-range`,
+  `#vt-scroll`, `.legend`
+- `cal/timeline.js` — region 4, row 2 (and the crosshair overlay)
 - `cal/sidebar.js` — region 2
 - `cal/editor.js` — the drawer (overlays everything; not a region)

@@ -57,7 +57,8 @@ const ENGINE = ['cal/engine.js', 'cal/store.js'];
 console.log('\n[1] Timeline geometry (index.html)');
 {
   const page = makePage('index.html');
-  load(page, [...ENGINE, 'cal/timeline.js']);
+  load(page, [...ENGINE, 'cal/timeline.js', 'cal/editor.js', 'cal/eventeditor.js',
+               'cal/panels.js', 'cal/sidebar.js']);
   const d = page.doc;
 
   const ruler = [...d.querySelectorAll('.ruler-lab')];
@@ -148,7 +149,11 @@ console.log('\n[2] Calendar CRUD (calendars.html)');
 console.log('\n[3] Event CRUD (events.html)');
 {
   const page = makePage('events.html');
-  const X = load(page, [...ENGINE, 'cal/events.js']);
+  // the page fetches the shared drawer at runtime; inject it directly here
+  page.doc.body.insertAdjacentHTML('beforeend',
+    fs.readFileSync(path.join(ROOT, 'cal/event-drawer.html'), 'utf8'));
+  const X = load(page, [...ENGINE, 'cal/eventeditor.js', 'cal/events.js']);
+  page.window.EventEditor.bind();
   const d = page.doc, w = page.window;
 
   const rowsBefore = d.querySelectorAll('#evtTable tbody tr').length;

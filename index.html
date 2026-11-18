@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chronology S — Calendars</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='4' fill='%23d1e7d1'/></svg>">
-<link rel="stylesheet" href="cal/styles.css?cb=6">
+<link rel="stylesheet" href="cal/styles.css?cb=7">
 </head>
 <body>
 <div class="app">
@@ -29,8 +29,9 @@
   </header>
 
   <div class="body">
-    <!-- ============ left: calendar list ============ -->
-    <aside class="side">
+    <!-- ============ region 2: calendar list (collapsible) ============ -->
+    <aside class="side" id="sidePanel">
+      <button class="collapse" id="collapseSide" title="Minimise calendars">‹</button>
       <div id="calList"></div>
 
       <p class="label">View</p>
@@ -39,8 +40,21 @@
         <div id="viewRange" style="font-family:var(--mono);font-size:11px;margin-top:6px"></div>
       </div>
     </aside>
+    <button class="rail" id="railSide" title="Show calendars" hidden><span>Calendars</span></button>
 
-    <!-- ============ right: timeline ============ -->
+    <!-- ============ region 3: events panel (collapsible) ============ -->
+    <section class="evpanel" id="evPanel">
+      <button class="collapse" id="collapseEv" title="Minimise events">›</button>
+      <div class="evpanel-head">
+        <select class="select" id="evFilter" title="Filter by calendar">
+          <option value="">All events</option>
+        </select>
+      </div>
+      <div class="evpanel-body" id="evList"></div>
+    </section>
+    <button class="rail" id="railEv" title="Show events"><span>Events</span></button>
+
+    <!-- ============ region 4: right column ============ -->
     <main class="main">
       <!-- controls live OUTSIDE the table, in-flow, left/right split above it -->
       <div class="tl-controls">
@@ -204,8 +218,17 @@
 <script src="cal/engine.js"></script>
 <script src="cal/store.js"></script>
 <script src="cal/timeline.js"></script>
+<script src="cal/eventeditor.js"></script>
 <script src="cal/editor.js"></script>
+<script src="cal/panels.js"></script>
 <script src="cal/sidebar.js"></script>
-<script>CalEditor.bind();</script>
+<script>
+CalEditor.bind();
+/* shared event drawer (also used by the region-3 events panel) */
+fetch('cal/event-drawer.html').then(r => r.text()).then(html => {
+  document.body.insertAdjacentHTML('beforeend', html);
+  window.EventEditor.bind();
+});
+</script>
 </body>
 </html>
