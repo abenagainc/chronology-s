@@ -102,8 +102,20 @@ Year Small YYYY · Month Small MM or name · Day Small DD
 4. The tick spec here matches batch5 section B (global settings) — same work.
 
 ## Suggested sequencing (pending list)
-1. Virtual scrolling (blocks unbounded rulers + derived range)
+
+**2026-11-19: virtual scrolling is DEFERRED.** Abe can live with the px/day
+ceiling for now; it will be done on a branch later. Do the other pending work
+first and get to a good checkpoint.
+
+1. ~~Virtual scrolling~~ -> **deferred, branch later**
 2. Ruler as a type + default-ruler initial state
 3. State (anchored/floating) + anchor model + floating 2-column layout
 4. Clone/custom-clone event inheritance
 5. Global settings panel (magnification, time units, labels, ticks, ordering)
+
+## Ceiling reference (for when we return)
+
+content height = DAYS_TOTAL x PPD, browser cap = 2^24 = 16,777,216 px.
+At 6.5 px/day -> ~7,000 years total (the current 5000 BCE - 2028 span).
+At 20 px/day -> ~2,300 years. At 30 px/day -> ~1,500 years.
+Virtual scrolling removes the trade entirely: px/day becomes a pure zoom.
