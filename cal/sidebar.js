@@ -39,7 +39,8 @@
 
   function item(c) {
     const isOff = window.hiddenIds().has(c.id);
-    const built = c.kind === 'builtin';
+    // 'builtin' and 'clone' both have FROZEN rules; only 'custom' is editable.
+    const built = c.type === 'builtin' || c.type === 'clone' || c.kind === 'builtin';
     const el = document.createElement('div');
     el.className = 'cal-item' + (isOff ? ' off' : '');
     el.innerHTML = `
@@ -67,18 +68,31 @@
       Store.updateCalendar(S, c.id, { color: e.target.value });
       refresh(); render();
     };
-    /* built-in: one small thumbnail button (same size as the custom-calendar
-       edit icon) that opens a popover for colour AND format. */
+    /* BUILT-IN: display-only. Editable = colour + date format. Everything else
+       (rules, epoch, months, leap, bounds) is frozen, per the ruling. */
     const cfmt = el.querySelector('[data-a=cfmt]');
     if (cfmt) cfmt.onclick = (e) => openCalPop(e.currentTarget, c);
+    /* CUSTOM: full editor, including its data variables. */
     const edit = el.querySelector('[data-a=edit]');
     if (edit) edit.onclick = () => CalEditor.open(c);
-    el.querySelector('[data-a=dup]').onclick = () => {
+    /* DUPLICATE offers two labelled choices (ruling 2026-11-19):
+         Create Clone  -> rules frozen, display editable, added immediately
+         Create Custom -> the same copy opened in the drawer with every
+                          variable pre-filled, ready to adjust            */
+    el.querySelector('[data-a=dup]').onclick = async () => {
       const copy = JSON.parse(JSON.stringify(c));
-      copy.kind = 'custom';
-      copy.name = c.name.replace(/\s*\(copy\)$/i, '') + ' (copy)';
-      Store.addCalendar(S, copy);
-      refresh(); render();
+      copy.type = 'clone';
+      copy.kind = 'clone';
+      copy.name = c.name.replace(/\s*\((copy|clone)\)$/i, '') + ' (clone)';
+      const choice = await dupChoice(copy.name);
+      if (choice === 'clone') {
+        Store.addCalendar(S, copy);
+        refresh(); render();
+      } else if (choice === 'custom') {
+        copy.type = 'custom'; copy.kind = 'custom';
+        copy.name = copy.name.replace(/\s*\(clone\)$/i, '') + ' (custom)';
+        CalEditor.open({ ...copy, id: undefined });
+      }
     };
     const del = el.querySelector('[data-a=del]');
     if (del) del.onclick = () => {
@@ -88,6 +102,33 @@
       refresh(); render();
     };
     return el;
+  }
+
+  /** Duplicate choice: two LABELLED actions, not OK/Cancel.
+     Returns 'clone' | 'custom' | null. */
+  function dupChoice(name) {
+    const old = $('dupPop');
+    if (old) old.remove();
+    const pop = document.createElement('div');
+    pop.className = 'popover pop-dup';
+    pop.id = 'dupPop';
+    pop.innerHTML = `
+      <div class="pop-title">Duplicate “${esc(name)}”</div>
+      <button class="btn sm" id="dupClone">Create Clone</button>
+      <button class="btn sm ghost" id="dupCustom">Create Custom</button>
+      <div class="pop-hint">Clone — same rules, display editable, can hold events.<br>
+        Custom — every variable adjustable.</div>`;
+    pop.style.position = 'fixed';
+    pop.style.top = '50%'; pop.style.left = '50%';
+    pop.style.transform = 'translate(-50%,-50%)';
+    document.body.appendChild(pop);
+    return new Promise(res => {
+      pop.querySelector('#dupClone').onclick = () => { pop.remove(); res('clone'); };
+      pop.querySelector('#dupCustom').onclick = () => { pop.remove(); res('custom'); };
+      const kill = (e) => { if (e.target === pop) { pop.remove(); res(null); } };
+      pop.addEventListener('click', kill);
+      setTimeout(() => { if (pop.isConnected) { pop.remove(); res(null); } }, 8000);
+    });
   }
 
   /** Popover for a built-in's colour + date format. */
@@ -110,7 +151,9 @@
         <span class="pop-lab">Format</span>
         <input id="cpFmt" type="text" value="${esc(c.format || 'YYYY-MM-DD')}" style="width:110px">
       </div>
-      <div class="pop-hint">tokens: YYYY&middot;MM&middot;DD — applies to this calendar's labels</div>`;
+      <div class="pop-hint">tokens: YYYY&middot;MM&middot;DD — applies to this calendar's labels</div>
+      <div class="pop-hint" style="margin-top:6px">validity: <b>${esc(boundLabel(c))}</b>
+        &middot; rules are fixed for built-ins</div>`;
     document.body.appendChild(pop);
     pop.querySelector('#cpColor').oninput = (e) => {
       Store.updateCalendar(S, c.id, { color: e.target.value });
@@ -149,8 +192,8 @@
   function render() {
     const list = $('calList');
     list.innerHTML = '';
-    const builtins = S.calendars.filter(c => c.kind === 'builtin');
-    const customs = S.calendars.filter(c => c.kind !== 'builtin');
+    const builtins = S.calendars.filter(c => c.type === 'builtin' || c.type === 'clone');
+    const customs = S.calendars.filter(c => !(c.type === 'builtin' || c.type === 'clone'));
     list.appendChild(section('Calendars', builtins, 'Add built-in calendar', 'builtin'));
     list.appendChild(section('Custom', customs, 'Add custom calendar', 'custom'));
 

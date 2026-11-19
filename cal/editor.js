@@ -220,7 +220,12 @@ window.CalEditor = (() => {
       const payload = { ...d };
       delete payload.id;
       const S2 = Store.load();
-      if (editing) Store.updateCalendar(S2, editing.id, payload);
+      /* Distinguish "editing an existing calendar" from "creating one".
+         `editing` is the SOURCE object, which for a duplicate is a copy with
+         id undefined — testing truthiness sent it down the update path with an
+         undefined id, which silently did nothing. */
+      const existingId = editing?.id;
+      if (existingId) Store.updateCalendar(S2, existingId, payload);
       else Store.addCalendar(S2, payload);
       close();
       window.dispatchEvent(new CustomEvent('cal-changed'));

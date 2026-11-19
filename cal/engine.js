@@ -137,7 +137,8 @@ function formatDay(day, cal) {
 
 /* --- built-ins ------------------------------------------------------------ */
 function gregorianCal() {
-  return { id: 'gregorian', name: 'Proleptic Gregorian', kind: 'builtin', color: '#4f7cdf',
+  return { id: 'gregorian', name: 'Proleptic Gregorian', kind: 'builtin',
+    type: 'builtin', color: '#4f7cdf',
     era: 'ce', format: 'YYYY-MM-DD',
     // A validity window in the calendar's OWN units. `null` = unbounded.
     // Proleptic calendars are unbounded by definition.
@@ -156,7 +157,8 @@ function julianCal() {
 }
 function hijriCal() {
   const months = MONTH_NAMES_HIJRI.map((n, i) => ({ name: n, days: (i % 2 === 0 ? 30 : 29) }));
-  return { id: 'hijri', name: 'Proleptic Hijri (tabular)', kind: 'builtin', color: '#3f9d6b',
+  return { id: 'hijri', name: 'Proleptic Hijri (tabular)', kind: 'builtin',
+    type: 'builtin', color: '#3f9d6b',
     note: 'Tabular (arithmetic) Islamic calendar — not moon-sighted; runs ahead of observed dates.',
     era: 'ce', format: 'DD/MM/YYYY',
     eraBefore: 'BH', eraAfter: 'AH',     // before/after the Hijra

@@ -131,6 +131,11 @@ h2 { font-size: .95rem; margin: 0; }
 .cal-item .bound { flex: 0 0 auto; font-size: 10px; color: var(--muted);
                    font-family: var(--mono); opacity: .8; }
 .cal-item .acts { display: flex; gap: 1px; flex: 0 0 auto; align-items: center; }
+/* duplicate choice popover */
+.pop-dup { width: 280px; text-align: left; }
+.pop-dup .pop-title { font-size: 13px; margin-bottom: 8px; }
+.pop-dup .btn { display: block; width: 100%; margin: 4px 0; text-align: left; }
+
 .cal-item .acts .btn { width: 20px; height: 20px; padding: 0; font-size: 11px; }
 /* colour swatch: one element that is both the indicator and the control */
 .cal-item .swatch { width: 20px; height: 20px; padding: 0; border: 1px solid var(--border);
