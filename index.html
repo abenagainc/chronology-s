@@ -132,6 +132,29 @@
       <input id="fName" type="text" placeholder="e.g. Proleptic Gregorian"></label>
 
     <div class="row2">
+      <label class="fld"><span>Valid from — blank = unbounded</span>
+        <span class="stack">
+          <span class="inline">
+            <input id="fBoundFromD" type="number" min="1" max="31" value="1">
+            <select id="fBoundFromM"></select>
+            <input id="fBoundFromY" type="number" value="1">
+          </span>
+          <small class="err" id="fBoundFromErr"></small>
+        </span>
+      </label>
+      <label class="fld"><span>Valid to — blank = unbounded</span>
+        <span class="stack">
+          <span class="inline">
+            <input id="fBoundToD" type="number" min="1" max="31" value="1">
+            <select id="fBoundToM"></select>
+            <input id="fBoundToY" type="number" value="1">
+          </span>
+          <small class="err" id="fBoundToErr"></small>
+        </span>
+      </label>
+    </div>
+
+    <div class="row2">
       <label class="fld"><span>Epoch — day 1/1/1 is this day</span>
         <span class="stack">
           <select id="fEpochCal"></select>
@@ -206,13 +229,13 @@
   </div>
 </aside>
 
-<script src="cal/engine.js"></script>
-<script src="cal/store.js"></script>
-<script src="cal/timeline.js?cb=19"></script>
+<script src="cal/engine.js?cb=20"></script>
+<script src="cal/store.js?cb=20"></script>
+<script src="cal/timeline.js?cb=23"></script>
 <script src="cal/eventeditor.js"></script>
-<script src="cal/editor.js"></script>
-<script src="cal/panels.js"></script>
-<script src="cal/sidebar.js"></script>
+<script src="cal/editor.js?cb=23"></script>
+<script src="cal/panels.js?cb=20"></script>
+<script src="cal/sidebar.js?cb=20"></script>
 <script>
 CalEditor.bind();
 /* shared event drawer (also used by the region-3 events panel) */

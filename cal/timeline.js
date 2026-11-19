@@ -23,12 +23,14 @@
     catch (e) { return new Set(); }
   }
   function setHidden(ids) { localStorage.setItem(HIDE_KEY, JSON.stringify([...ids])); }
-  /** The calendars currently drawn in row 2. */
+
+  let S = Store.load();
+  /* Exposed for the sidebar and for verification. Assigned AFTER S/PPD/day2px
+     exist — putting this above the `let` declarations made the closures capture
+     bindings before initialisation and threw on first call. */
   window.calVisible = () => S.calendars.filter(c => !hiddenIds().has(c.id));
   window.hiddenIds = hiddenIds;
   window.setHidden = setHidden;
-
-  let S = Store.load();
   let PPD = 0.006;                                 // pixels per DAY — the one zoom knob
   let LAST_CROSS_DAY = null;    // crosshair's day (drives the bubbles + ruler date)
   let LAST_CURSOR_DAY = null;   // mouse's day (drives row 3)
@@ -99,6 +101,9 @@
   let MAX_PPD = MAX_SCROLL_PX / DAYS_TOTAL;   // ~6.5 px/day
   const MIN_PPD = 0.0008;
   const clampPPD = v => Math.min(Math.max(v, MIN_PPD), MAX_PPD);
+  /* exposed for verification: the module's own coordinate map, so tests do not
+     reconstruct days from rounded readouts. */
+  window._geom = { day2px, px2day, calHasDay, boundDay };
   const TICK_PX = 6;
   const LABEL_PX = 80;
 
@@ -188,6 +193,7 @@
       const step = Math.max(1, Math.round(1 / density));
       let i = 0;
       for (let d = Math.ceil(lo / step) * step; d <= hi; d += step, i++) {
+        if (!calHasDay(cal, d)) continue;          // outside this calendar's bounds
         out.push({ px: day2px(d), tier: 'day', major: false,
                    label: (show && st.day.label) ? tierLabel(d, cal, 'day') : '' });
       }
@@ -202,7 +208,7 @@
       for (let y = loY - 1; y <= hiY + 1; y++) {
         for (let m = 1; m <= cal.months.length; m++) {
           const day = dateToDay(y, m, 1, cal);
-          if (!inView(day)) continue;
+          if (!inView(day) || !calHasDay(cal, day)) continue;
           out.push({ px: day2px(day), tier: 'month', major: false,
                      label: (show && st.month.label) ? tierLabel(day, cal, 'month') : '' });
           i++;
@@ -223,6 +229,7 @@
       const start = Math.ceil(yStart / span) * span;
       for (let y = start; y <= yEnd; y += span, i++) {
         const day = dateToDay(y, 1, 1, cal);
+        if (!calHasDay(cal, day)) continue;
         out.push({ px: day2px(day), tier, major: false,
                    label: (show && st[tier].label) ? tierLabel(day, cal, tier) : '' });
       }
@@ -287,6 +294,7 @@
     for (const cal of visible) {
       const col = document.createElement('div');
       col.className = 'col';
+      col.dataset.cal = cal.id;
       col.style.width = COLW + 'px';
       const ready = calReady(cal);
       col.innerHTML = `<div class="col-head"><span class="dot" style="background:${cal.color}"></span>
@@ -296,6 +304,28 @@
       const body = document.createElement('div');
       body.className = 'col-body';
       body.style.height = H + 'px';
+
+      /* Out-of-bounds shading: darker than the in-bounds area, with no ticks.
+         Drawn as a full-height base plus darker bands where the calendar has
+         no validity, so a bounded calendar reads as "outside" at a glance. */
+      if (ready) {
+        const lo = boundDay(cal, 'from'), hi = boundDay(cal, 'to');
+        if (lo !== null || hi !== null) {
+          const band = document.createElement('div');
+          band.className = 'oob';
+          band.style.top = '0px';
+          band.style.height = H + 'px';
+          body.appendChild(band);
+          for (const [d0, d1] of [[null, lo], [hi, null]]) {
+            if (d0 === null && d1 === null) continue;
+            const b = document.createElement('div');
+            b.className = 'oob-band';
+            if (d1 !== null) { b.style.top = '0px'; b.style.height = day2px(d1) + 'px'; }
+            else { b.style.top = day2px(d0) + 'px'; b.style.height = Math.max(H - day2px(d0), 0) + 'px'; }
+            body.appendChild(b);
+          }
+        }
+      }
 
       if (ready) {
         for (const m of marksFor(cal)) {
@@ -316,7 +346,7 @@
         for (const e of S.events) {
           if (e.calId !== cal.id) continue;
           const d1 = Store.eventDay(S, e), d2 = Store.eventEndDay(S, e);
-          if (d1 === null) continue;
+          if (d1 === null || !calHasDay(cal, d1)) continue;   // outside bounds: not drawn
           const el = document.createElement('div');
           el.className = 'ev ' + (e.kind === 'span' ? 'span' : 'point');
           el.style.background = '#364038';
