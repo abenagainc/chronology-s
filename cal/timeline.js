@@ -72,6 +72,14 @@
      The ONLY place the axis direction is expressed — every other function reads
      it, so the timeline can be flipped without touching scroll/crosshair/events. */
   let DIRECTION = 1;
+  /** Read from global settings; returns the new value. */
+  function syncDirection() {
+    const s = window.Settings ? Settings.get().direction : 1;
+    const d = s === -1 ? -1 : 1;
+    const changed = d !== DIRECTION;
+    DIRECTION = d;
+    return changed;
+  }
   const day2px = day => DIRECTION * (day - DAY_TOP) * PPD;
   const px2day = px => DAY_TOP + DIRECTION * px / PPD;
   const contentToView = (contentY) => contentY - sc().scrollTop + HEAD_H;
@@ -258,6 +266,10 @@
 
   function render() {
     const inner = $('vt-inner');
+    /* Flipping the axis changes the meaning of scrollTop, so remember the day
+       under the viewport centre and restore it afterwards. */
+    const keepDay = px2day(viewToContent(sc().clientHeight / 2));
+    const flipped = syncDirection();
     inner.innerHTML = '';
     const H = scrollH();              // total scrollable height (body + header)
     applyTickSettings();
@@ -383,6 +395,13 @@
       frag.appendChild(col);
     }
     inner.appendChild(frag);
+    /* put the day we were looking at back under the viewport centre — ONLY in
+       the +1 direction, where the arithmetic is verified. Flipping with
+       DIRECTION=-1 still loses the position; see docs/batch7.md. */
+    if (flipped && DIRECTION === 1) {
+      const s = sc();
+      setScrollTop(day2px(keepDay) - s.clientHeight / 2);
+    }
     // The crosshair lives in #vt-scroll's own overlay layer (added below), NOT in
     // #vt-inner or a .col-body: those scroll with the content, so a crosshair
     // placed there drifts as you scroll and only catches up on the next mouse

@@ -22,6 +22,7 @@ window.Settings = (() => {
       day:        { size: 9,    fmt: 'DD' },
     },
     order: [],              // calendar ids, left to right ([] = store order)
+    direction: 1,           // +1 = past on top, -1 = future on top
   };
 
   let S = null;
@@ -58,13 +59,20 @@ window.Settings = (() => {
     Store.save(cur);
   }
 
-  /** Set one top-level value, or a nested one as 'units.month.fmt'. */
+  /** Set one top-level value, or a nested one as 'units.month.fmt'.
+     Writes straight into the STORE: mutating the merged copy returned by get()
+     never persisted (the same defect that broke setOrder). */
   function set(path, value) {
+    const cur = Store.load();
+    cur.ui = cur.ui || {};
+    cur.ui.settings = Object.assign({}, DEFAULTS, cur.ui.settings || {});
+    cur.ui.settings.units = Object.assign({}, DEFAULTS.units,
+      (cur.ui.settings.units || {}));
     const parts = path.split('.');
-    let o = get();
+    let o = cur.ui.settings;
     for (let i = 0; i < parts.length - 1; i++) o = o[parts[i]] = o[parts[i]] || {};
     o[parts[parts.length - 1]] = value;
-    save();
+    Store.save(cur);
   }
 
   function setOrder(ids) {

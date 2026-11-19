@@ -46,6 +46,11 @@ window.SettingsPanel = (() => {
       ${col('Colour', 'gs_majorColor', 'color', 'class="gs-color"')}
       ${col('Thickness', 'gs_majorThickness', 'number', 'min="1" max="6" step="1"')}
 
+      <div class="gs-sec">Time direction</div>
+      <label class="gs-row"><span>Past on top</span>
+        <input id="gs_direction" type="checkbox" ${st.direction === 1 ? 'checked' : ''}
+               title="off = future on top"></label>
+
       <div class="gs-sec">Time units — label size &amp; format</div>
       ${unitRows}
 
@@ -67,6 +72,11 @@ window.SettingsPanel = (() => {
       const el = $(id); if (!el) return;
       el.oninput = () => { Settings.set(p, el.value); window.dispatchEvent(new Event('cal-changed')); };
     });
+    const dir = $('gs_direction');
+    if (dir) dir.onchange = () => {
+      Settings.set('direction', dir.checked ? 1 : -1);
+      window.dispatchEvent(new Event('cal-changed'));
+    };
     UNITS.forEach(([key]) => {
       const sz = $('gs_size_' + key), fm = $('gs_fmt_' + key);
       if (sz) sz.onchange = () => { Settings.set(`units.${key}.size`, NUM(sz.value, 6, 24)); window.dispatchEvent(new Event('cal-changed')); };
@@ -111,6 +121,8 @@ window.SettingsPanel = (() => {
   function sync() {
     const st = Settings.get();
     const put = (id, v) => { const el = $(id); if (el && el.value != v) el.value = v; };
+    const chk = (id, on) => { const el = $(id); if (el && el.checked !== on) el.checked = on; };
+    chk('gs_direction', st.direction === 1);
     put('gs_calWidth', st.calWidth); put('gs_rulerWidth', st.rulerWidth);
     put('gs_minorLimit', st.minorLimitPx); put('gs_majorLimit', st.majorLimitPx);
     put('gs_minorThickness', st.minorThickness); put('gs_majorThickness', st.majorThickness);
