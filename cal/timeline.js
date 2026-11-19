@@ -34,8 +34,10 @@
   let LAST_CURSOR_DAY = null;   // mouse's day (drives row 3)
 
   /* Tick / label settings, driven by the popover. */
-  let TICK_DENSITY = 1;      // minor-tick multiplier (0.25 … 4)
-  let LABEL_EVERY = 1;       // label every Nth major tick (1 … 8)
+  /* Tick density and label frequency are FIXED at 1 — no user control for now,
+     so the ticks can be judged visually without sliders in the way. */
+  const TICK_DENSITY = 1;
+  const LABEL_EVERY = 1;
   let LABEL_SIZE = 10;       // px
   let SHOW_LABELS = true;
   let REF_ID = 'gregorian';  // which calendar the RULER shows
@@ -89,6 +91,14 @@
      TICK_PX  — how far apart ticks must be to be DRAWN (minor-tick spacing).
      LABEL_PX — how far apart LABELS must be to be legible.
      Decoupling these is what lets "many ticks, few labels". */
+  /* Hard ceiling: browsers cap scrollable height at 2^24 px. Beyond that
+     scrollTop clamps and the view lands in the wrong era. The largest scale we
+     can represent is therefore (2^24 / total days). Coded as a SETTING so it is
+     visible and adjustable rather than a hidden constant. */
+  const MAX_SCROLL_PX = 16777216;
+  let MAX_PPD = MAX_SCROLL_PX / DAYS_TOTAL;   // ~6.5 px/day
+  const MIN_PPD = 0.0008;
+  const clampPPD = v => Math.min(Math.max(v, MIN_PPD), MAX_PPD);
   const TICK_PX = 6;
   const LABEL_PX = 80;
 
@@ -463,9 +473,9 @@
     const s = sc();
     // keep the day under the viewport centre fixed across the zoom
     const midDay = px2day(viewToContent(s.clientHeight / 2));
-    PPD = Math.min(Math.max(PPD * factor, 0.0008), 40);
+    PPD = clampPPD(PPD * factor);
     render();
-    setScrollTop(contentToView(day2px(midDay)) - s.clientHeight / 2);
+    setScrollTop(day2px(midDay) + HEAD_H - s.clientHeight / 2);
     updateRange(); placeCrosshair();
   }
 
@@ -482,11 +492,13 @@
                          decades: 3652.425, centuries: 36524.25, millennia: 365242.5 }[preset];
       PPD = (unitDays ? LABEL_MIN_PX / unitDays : 0.002);
     }
-    PPD = Math.min(Math.max(PPD, 0.0008), 40);
+    PPD = clampPPD(PPD);
     render();
-    if (preset !== 'fit') {
-      setScrollTop(contentToView(day2px(today)) - s.clientHeight / 2);
-    }
+    /* fit also needs its scroll position set: leaving the old scrollTop with a
+       new (much smaller) scale put the view years past the data. */
+    setScrollTop(preset === 'fit'
+      ? 0
+      : day2px(today) + HEAD_H - s.clientHeight / 2);
     updateRange(); placeCrosshair();
   }
 
@@ -515,10 +527,12 @@
       };
       pop.addEventListener('click', (e) => e.stopPropagation());
       document.addEventListener('click', () => { pop.hidden = true; });
-      $('tickDensity').oninput = (e) => { TICK_DENSITY = +e.target.value; render(); };
-      $('labelEvery').oninput = (e) => { LABEL_EVERY = +e.target.value; render(); };
-      $('labelSize').onchange = (e) => { LABEL_SIZE = +e.target.value; applyLabelSize(); render(); };
-      $('showLabels').onchange = (e) => { SHOW_LABELS = e.target.checked; render(); };
+
+      /* Popover controls are optional — the panel is rebuilt and settings are
+         added/removed, so every binding must tolerate a missing element. */
+      const on = (id, ev, fn) => { const el = $(id); if (el) el[ev] = fn; };
+      on('labelSize', 'onchange', (e) => { LABEL_SIZE = +e.target.value; applyLabelSize(); render(); });
+      on('showLabels', 'onchange', (e) => { SHOW_LABELS = e.target.checked; render(); });
       const thT = $('thTick'), thL = $('thLabel');
       if (thT) thT.onchange = (e) => {
         TICK_MIN_PX = Math.max(1, +thT.value || 5); updateTierActive(); render();
@@ -526,6 +540,17 @@
       if (thL) thL.onchange = (e) => {
         LABEL_MIN_PX = Math.max(1, +thL.value || 30); updateTierActive(); render();
       };
+      /* the zoom ceiling is a SETTING, not a hidden constant */
+      const mpIn = $('maxPpdIn'), mpOut = $('maxPpd');
+      if (mpOut) mpOut.textContent = MAX_PPD.toFixed(2);
+      if (mpIn) {
+        mpIn.value = MAX_PPD.toFixed(1);
+        mpIn.onchange = (e) => {
+          MAX_PPD = Math.max(0.5, +mpIn.value || MAX_PPD);
+          if (PPD > MAX_PPD) { PPD = MAX_PPD; render(); }
+          updateTierActive();
+        };
+      }
     }
     function updateTierActive() {
       const el = $('tierActive');

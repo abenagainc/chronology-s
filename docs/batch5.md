@@ -68,6 +68,16 @@ future-on-top, via the single `DIRECTION` constant.
 inside the viewport** and **bubble height < 40px**, which were never asserted.
 Check the LIVE site, not only local.
 
+## CHECKPOINT 2 — zoom ceiling (2026-11-18)
+
+Browsers cap scrollable height at **2^24 = 16,777,216 px**. At 30 px/day the
+content would be 77M px tall, so `scrollTop` clamps and the view lands in the
+wrong era (year 3469). Max representable: **~6.5 px/day**.
+
+Decision: make the ceiling a SETTING (a limit the user can adjust), and clamp
+zoom to it. Also remove tick density / label frequency so Abe can judge the
+ticks visually.
+
 ## CHECKPOINT 1 — committed 2026-11-18 (branch `geometry-rework`)
 
 Landed and verified:
