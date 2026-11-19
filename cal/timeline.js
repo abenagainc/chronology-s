@@ -480,11 +480,15 @@
   function moveCrosshair() {
     const s = sc();
     const c = ensureCrosshair();
-    // crosshair lives in VIEWPORT space; its day comes from the content space
+    /* #vt-scroll is a scroll container, so an `absolute` child's `top` is in
+       CONTENT coordinates, not viewport — the visible box is offset by
+       scrollTop. Hence top = scrollTop + half. The day comes from the same
+       content position, so viewToContent() must NOT be applied on top of it:
+       contentY = top, so day = px2day(viewY - HEAD_H). */
     const viewY = s.scrollTop + s.clientHeight / 2;
     c.style.top = viewY + 'px';
     c.style.display = '';
-    const day = Math.round(px2day(viewToContent(viewY)));
+    const day = Math.round(px2day(viewY - HEAD_H));
     LAST_CROSS_DAY = day;
     updateCrossBubbles(day);
   }

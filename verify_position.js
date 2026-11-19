@@ -126,7 +126,9 @@ function ok(cond, label, detail = '') {
 
   console.log('\n[position] Today');
   await send('Runtime.evaluate', { expression: `document.querySelector('#todayBtn').click()` });
-  await new Promise(r => setTimeout(r, 600));
+  /* Today re-renders; reading the DOM in the same instant sees an empty column
+     (0 marks) and reports a false failure. Let the rebuild settle. */
+  await new Promise(r => setTimeout(r, 900));
   o = await ev(PROBE);
   const cur = new Date().getFullYear();
   ok(o.scrollTop > 0, 'Today moves the scroll position', `scrollTop ${o.scrollTop}`);
