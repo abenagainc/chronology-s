@@ -74,6 +74,42 @@ window.CalEditor = (() => {
       `<button class="preset" data-p="${p.id}">${p.label}</button>`).join('');
     $('presets').querySelectorAll('.preset').forEach(b => b.onclick = () => applyPreset(b.dataset.p));
     fillEpochDateOptions();
+    fillBoundOptions();
+  }
+
+  /* --- validity bounds (in THIS calendar's own units) ----------------- */
+  /* The month lists belong to the calendar being edited, so the dropdowns are
+     filled from `draft.months` and blank means "unbounded". */
+  function fillBoundOptions() {
+    ['From', 'To'].forEach(side => {
+      const mSel = $('fBound' + side + 'M');
+      if (!mSel) return;
+      mSel.innerHTML = draft.months.map((m, i) =>
+        `<option value="${i + 1}">${esc(m.name)}</option>`).join('');
+      const b = side === 'From' ? draft.boundFrom : draft.boundTo;
+      if (b && b[1] >= 1 && b[1] <= draft.months.length) {
+        $('fBound' + side + 'Y').value = b[0];
+        mSel.value = String(b[1]);
+        $('fBound' + side + 'D').value = b[2];
+        $('fBound' + side + 'D').max = daysInMonth(b[0], b[1] - 1, draft) || 31;
+      } else {
+        $('fBound' + side + 'Y').value = '';
+        $('fBound' + side + 'D').value = '';
+      }
+    });
+  }
+
+  /** Read a bound field; returns [y,m,d] or null (blank = unbounded). */
+  function readBound(side) {
+    const y = $('fBound' + side + 'Y').value.trim();
+    const d = $('fBound' + side + 'D').value.trim();
+    if (!y && !d) return null;
+    if (!y || !d) { $('fBound' + side + 'Err').textContent = 'enter both a year and a day, or leave both blank'; return undefined; }
+    const m = +($('fBound' + side + 'M').value || 1);
+    const dim = daysInMonth(+y, m - 1, draft) || 31;
+    if (+d < 1 || +d > dim) { $('fBound' + side + 'Err').textContent = `day must be 1–${dim}`; return undefined; }
+    $('fBound' + side + 'Err').textContent = '';
+    return [+y, m, +d];
   }
 
   function addMonthRow(name, days, idx) {
@@ -105,6 +141,16 @@ window.CalEditor = (() => {
     draft.epochCal = $('fEpochCal').value;
     draft.epochDate = [+$('fEpochY').value, +$('fEpochM').value, +$('fEpochD').value];
     draft.epoch = [1, 1, 1];
+    /* bounds: null = unbounded. readBound returns undefined on a bad entry. */
+    const bf = readBound('From'), bt = readBound('To');
+    if (bf !== undefined && bt !== undefined) {
+      if (bf && bt && dateToDay(bt[0], bt[1], bt[2], draft) < dateToDay(bf[0], bf[1], bf[2], draft)) {
+        $('fBoundToErr').textContent = 'end must be after the start';
+      } else {
+        draft.boundFrom = bf;
+        draft.boundTo = bt;
+      }
+    }
     draft.months = [...$('monthTable').querySelectorAll('tbody tr')].map(tr => ({
       name: tr.querySelector('td:nth-child(2) input').value.trim() || 'Month',
       days: Math.max(1, +tr.querySelector('td:nth-child(3) input').value || 1),
@@ -206,6 +252,12 @@ window.CalEditor = (() => {
     ['fName', 'fFmt', 'fLeapCycle', 'fLeapYears', 'fEpochY', 'fEpochD'].forEach(id =>
       $(id).addEventListener('input', preview));
     $('fEpochM').addEventListener('change', preview);
+    /* bound fields re-preview; the month dropdowns are rebuilt with the draft,
+       so their options follow the month table. */
+    ['fBoundFromY', 'fBoundFromD', 'fBoundToY', 'fBoundToD'].forEach(id =>
+      $(id).addEventListener('input', preview));
+    ['fBoundFromM', 'fBoundToM'].forEach(id => $(id).addEventListener('change', preview));
+    $('monthTable').addEventListener('input', () => { fillBoundOptions(); preview(); });
     $('monthTable').addEventListener('input', preview);
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && !$('drawer').hidden) close();

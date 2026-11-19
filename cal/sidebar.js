@@ -46,6 +46,7 @@
       <button class="cb" role="checkbox" aria-checked="${!isOff}"
               title="${isOff ? 'Show on timeline' : 'Hide from timeline'}"></button>
       <span class="t">${esc(c.name)}</span>
+      <span class="bound" title="Validity range">${esc(boundLabel(c))}</span>
       <span class="acts">
         <input type="color" class="swatch" data-a="colour" value="${esc(c.color || '#4f7cdf')}"
                title="Colour and format">

@@ -23,19 +23,23 @@
     catch (e) { return new Set(); }
   }
   function setHidden(ids) { localStorage.setItem(HIDE_KEY, JSON.stringify([...ids])); }
-  /** The calendars currently drawn in row 2. */
+
+  let S = Store.load();
+  /* Exposed for the sidebar and for verification. Assigned AFTER S/PPD/day2px
+     exist — putting this above the `let` declarations made the closures capture
+     bindings before initialisation and threw on first call. */
   window.calVisible = () => S.calendars.filter(c => !hiddenIds().has(c.id));
   window.hiddenIds = hiddenIds;
   window.setHidden = setHidden;
-
-  let S = Store.load();
   let PPD = 0.006;                                 // pixels per DAY — the one zoom knob
   let LAST_CROSS_DAY = null;    // crosshair's day (drives the bubbles + ruler date)
   let LAST_CURSOR_DAY = null;   // mouse's day (drives row 3)
 
   /* Tick / label settings, driven by the popover. */
-  let TICK_DENSITY = 1;      // minor-tick multiplier (0.25 … 4)
-  let LABEL_EVERY = 1;       // label every Nth major tick (1 … 8)
+  /* Tick density and label frequency are FIXED at 1 — no user control for now,
+     so the ticks can be judged visually without sliders in the way. */
+  const TICK_DENSITY = 1;
+  const LABEL_EVERY = 1;
   let LABEL_SIZE = 10;       // px
   let SHOW_LABELS = true;
   let REF_ID = 'gregorian';  // which calendar the RULER shows
@@ -43,27 +47,44 @@
   const $ = id => document.getElementById(id);
   const sc = () => $('vt-scroll');
 
-  /* Vertical offset between the scroll-content origin and a column BODY.
-     Events are positioned inside `.col-body`, which sits below the column's
-     header — so content-coordinate y = BODY_OFFSET + day2px(day). The crosshair
-     is drawn in scroll-content coordinates, so every conversion must account
-     for this offset or events sit one header-height away from the crosshair. */
-  function bodyOffset() {
-    const s = sc();
-    const body = s.querySelector('.col-body');
-    if (!body) return 0;
-    return body.getBoundingClientRect().top - s.getBoundingClientRect().top + s.scrollTop;
-  }
-  const day2px = day => (day - DAY_TOP) * PPD;
-  const px2day = px => DAY_TOP + px / PPD;
-  /* SCROLL MODEL — the one place this is defined.
-     The scrollable content = the column BODY (the day range) + one header height,
-     because every column carries a 46px header ABOVE its body. Counting only the
-     day range left the bottom ~225px unreachable, so the crosshair (pinned to
-     the viewport centre) could never reach the last ticks. */
+  /* =====================================================================
+     THE COORDINATE MODEL — the only place it is defined.
+
+     ONE space: CONTENT. A day maps to a content-y via day2px(). Content-y is
+     measured from the TOP OF #vt-inner (the scrollable content), so content-y 0
+     is the first pixel you would see if scrolled to the very top.
+
+     Viewport-y = content-y - scrollTop + HEAD_H
+       (HEAD_H because the column bodies start one header below #vt-inner's top)
+
+     Nothing else in this file may call getBoundingClientRect or read
+     scrollTop to derive a day. Everything goes through:
+        day2px / px2day     content <-> day
+        contentToView()     content -> viewport
+        viewToContent()     viewport -> content
+     Previously bodyOffset() mixed the two spaces and ~10 call sites were wrong.
+     ===================================================================== */
   const HEAD_H = 46;
+  /* DIRECTION: +1 = past on top (later days further down), -1 = future on top.
+     The ONLY place the axis direction is expressed — every other function reads
+     it, so the timeline can be flipped without touching scroll/crosshair/events. */
+  let DIRECTION = 1;
+  const day2px = day => DIRECTION * (day - DAY_TOP) * PPD;
+  const px2day = px => DAY_TOP + DIRECTION * px / PPD;
+  const contentToView = (contentY) => contentY - sc().scrollTop + HEAD_H;
+  const viewToContent = (viewY) => viewY + sc().scrollTop - HEAD_H;
+
   const bodyH = () => DAYS_TOTAL * PPD;
   const scrollH = () => bodyH() + HEAD_H;
+
+  /* The visible window in DAY indices, with a margin so ticks appear just
+     before they scroll in. The single source for every mark generator. */
+  function visibleWindow(marginPx = 400) {
+    const s = sc();
+    const topContent = s.scrollTop - marginPx;
+    const botContent = s.scrollTop + (s.clientHeight || 600) + marginPx;
+    return { lo: px2day(topContent), hi: px2day(botContent) };
+  }
 
   /* Year step for the marks: the smallest step whose spacing is >= MIN_PX apart.
      Returns {step, majorEvery} where majorEvery is how many steps make a labelled
@@ -72,6 +93,17 @@
      TICK_PX  — how far apart ticks must be to be DRAWN (minor-tick spacing).
      LABEL_PX — how far apart LABELS must be to be legible.
      Decoupling these is what lets "many ticks, few labels". */
+  /* Hard ceiling: browsers cap scrollable height at 2^24 px. Beyond that
+     scrollTop clamps and the view lands in the wrong era. The largest scale we
+     can represent is therefore (2^24 / total days). Coded as a SETTING so it is
+     visible and adjustable rather than a hidden constant. */
+  const MAX_SCROLL_PX = 16777216;
+  let MAX_PPD = MAX_SCROLL_PX / DAYS_TOTAL;   // ~6.5 px/day
+  const MIN_PPD = 0.0008;
+  const clampPPD = v => Math.min(Math.max(v, MIN_PPD), MAX_PPD);
+  /* exposed for verification: the module's own coordinate map, so tests do not
+     reconstruct days from rounded readouts. */
+  window._geom = { day2px, px2day, calHasDay, boundDay };
   const TICK_PX = 6;
   const LABEL_PX = 80;
 
@@ -150,8 +182,8 @@
        converted to calendar dates before being used as a year bound. */
     const s = sc();
     const margin = 400;
-    const lo = px2day(s.scrollTop - margin - bodyOffset());
-    const hi = px2day(s.scrollTop + (s.clientHeight || 600) + margin - bodyOffset());
+    const lo = px2day(s.scrollTop - margin);
+    const hi = px2day(s.scrollTop + (s.clientHeight || 600) + margin);
     const inView = (day) => day >= lo && day <= hi;
     const loY = Math.min(dayToDate(lo, cal).y, dayToDate(hi, cal).y);
     const hiY = Math.max(dayToDate(lo, cal).y, dayToDate(hi, cal).y);
@@ -159,24 +191,26 @@
     /* --- DAY ticks --- */
     if (st.day.show) {
       const step = Math.max(1, Math.round(1 / density));
-      const everyDay = Math.max(1, Math.round(7 / density));   // label every Nth day
       let i = 0;
       for (let d = Math.ceil(lo / step) * step; d <= hi; d += step, i++) {
+        if (!calHasDay(cal, d)) continue;          // outside this calendar's bounds
         out.push({ px: day2px(d), tier: 'day', major: false,
-                   label: (show && st.day.label && i % everyDay === 0) ? tierLabel(d, cal, 'day') : '' });
+                   label: (show && st.day.label) ? tierLabel(d, cal, 'day') : '' });
       }
     }
 
     /* --- MONTH ticks, at real month boundaries --- */
     if (st.month.show) {
-      const everyM = Math.max(1, Math.round(12 / density));
+      /* With density fixed at 1 every month is labelled. The old
+         `round(12/density)` gave 12, i.e. ONE month per year — the visible
+         symptom was a single month label that changed as you scrolled. */
       let i = 0;
       for (let y = loY - 1; y <= hiY + 1; y++) {
         for (let m = 1; m <= cal.months.length; m++) {
           const day = dateToDay(y, m, 1, cal);
-          if (!inView(day)) continue;
+          if (!inView(day) || !calHasDay(cal, day)) continue;
           out.push({ px: day2px(day), tier: 'month', major: false,
-                     label: (show && st.month.label && i % everyM === 0) ? tierLabel(day, cal, 'month') : '' });
+                     label: (show && st.month.label) ? tierLabel(day, cal, 'month') : '' });
           i++;
         }
       }
@@ -187,15 +221,17 @@
     for (const tier of ['year', 'decade', 'century', 'millennium']) {
       if (!st[tier].show) continue;
       const span = spans[tier];
-      const everyN = Math.max(1, Math.round(span / density));
       let i = 0;
       const yStart = Math.max(MINY, loY - span);
-      const yEnd = Math.min(MAXY, hiY + span);
+      /* bound by the DATA range. DAY_BOT is a day INDEX (822), not a year —
+         dividing it by 365 produced MAXY_DATA=3 and the loop never ran. */
+      const yEnd = Math.min(hiY + span, MAXY);
       const start = Math.ceil(yStart / span) * span;
       for (let y = start; y <= yEnd; y += span, i++) {
         const day = dateToDay(y, 1, 1, cal);
+        if (!calHasDay(cal, day)) continue;
         out.push({ px: day2px(day), tier, major: false,
-                   label: (show && st[tier].label && i % everyN === 0) ? tierLabel(day, cal, tier) : '' });
+                   label: (show && st[tier].label) ? tierLabel(day, cal, tier) : '' });
       }
     }
     return out;
@@ -232,10 +268,15 @@
     const rb = document.createElement('div');
     rb.className = 'ruler-body';
     rb.style.height = H + 'px';
+    // the ruler draws the SAME marks as the columns — ticks AND labels
     for (const m of rulerMarks()) {
-      if (!m.label) continue;         // minor ticks get a line, not text
+      const t = document.createElement('div');
+      t.className = 'mark ' + m.tier;
+      t.style.top = m.px + 'px';
+      rb.appendChild(t);
+      if (!m.label) continue;
       const l = document.createElement('div');
-      l.className = 'ruler-lab';
+      l.className = 'mark lab ' + m.tier;
       l.style.top = m.px + 'px';
       l.textContent = m.label;
       rb.appendChild(l);
@@ -253,6 +294,7 @@
     for (const cal of visible) {
       const col = document.createElement('div');
       col.className = 'col';
+      col.dataset.cal = cal.id;
       col.style.width = COLW + 'px';
       const ready = calReady(cal);
       col.innerHTML = `<div class="col-head"><span class="dot" style="background:${cal.color}"></span>
@@ -262,6 +304,28 @@
       const body = document.createElement('div');
       body.className = 'col-body';
       body.style.height = H + 'px';
+
+      /* Out-of-bounds shading: darker than the in-bounds area, with no ticks.
+         Drawn as a full-height base plus darker bands where the calendar has
+         no validity, so a bounded calendar reads as "outside" at a glance. */
+      if (ready) {
+        const lo = boundDay(cal, 'from'), hi = boundDay(cal, 'to');
+        if (lo !== null || hi !== null) {
+          const band = document.createElement('div');
+          band.className = 'oob';
+          band.style.top = '0px';
+          band.style.height = H + 'px';
+          body.appendChild(band);
+          for (const [d0, d1] of [[null, lo], [hi, null]]) {
+            if (d0 === null && d1 === null) continue;
+            const b = document.createElement('div');
+            b.className = 'oob-band';
+            if (d1 !== null) { b.style.top = '0px'; b.style.height = day2px(d1) + 'px'; }
+            else { b.style.top = day2px(d0) + 'px'; b.style.height = Math.max(H - day2px(d0), 0) + 'px'; }
+            body.appendChild(b);
+          }
+        }
+      }
 
       if (ready) {
         for (const m of marksFor(cal)) {
@@ -282,7 +346,7 @@
         for (const e of S.events) {
           if (e.calId !== cal.id) continue;
           const d1 = Store.eventDay(S, e), d2 = Store.eventEndDay(S, e);
-          if (d1 === null) continue;
+          if (d1 === null || !calHasDay(cal, d1)) continue;   // outside bounds: not drawn
           const el = document.createElement('div');
           el.className = 'ev ' + (e.kind === 'span' ? 'span' : 'point');
           el.style.background = '#364038';
@@ -330,33 +394,37 @@
   /* The crosshair readout: a thin bubble ON the line, one date per calendar,
      positioned over its own column. Plus a bold date inside the ruler. */
   function renderCrossBubbles() {
-    const inner = $('vt-inner');
+    /* The bubble strip lives in #vt-scroll's VIEWPORT layer, next to the
+       crosshair — NOT in #vt-inner. Inside #vt-inner it inherited the full
+       content height (218,000px) and became a band instead of a bubble. */
+    const host = sc();
     let b = $('crossBubbles');
     if (b) b.remove();
     b = document.createElement('div');
     b.id = 'crossBubbles';
     b.className = 'cross-bubbles';
-    b.style.left = RULER_W + 'px';
     const vis = visibleCals();
-    b.innerHTML = [`<span class="cb-ruler" id="cbRuler"></span>`]
+    b.innerHTML = [`<span class="cb" style="width:${RULER_W}px"><span class="cbv" id="cbRuler"></span></span>`]
       .concat(vis.map(c =>
         `<span class="cb" style="width:${COLW}px"><span class="cbv" data-cal="${esc(c.id)}">—</span></span>`))
       .join('');
-    inner.appendChild(b);
+    host.appendChild(b);
     updateCrossBubbles(LAST_CROSS_DAY);
   }
 
   function updateCrossBubbles(day) {
     const b = $('crossBubbles');
     if (b) {
-      const vis = visibleCals();
+      // sit on the crosshair line, in VIEWPORT space
+      const c = $('cross');
+      b.style.top = c ? c.style.top : '0px';
       b.querySelectorAll('.cbv').forEach(el => {
-        const c = BY_ID[el.dataset.cal] || S.calendars.find(x => x.id === el.dataset.cal);
-        el.textContent = (c && day !== null) ? safeFormatDay(day, c) : '—';
+        const c2 = BY_ID[el.dataset.cal] || S.calendars.find(x => x.id === el.dataset.cal);
+        el.textContent = (c2 && day !== null) ? safeFormatDay(day, c2) : '—';
       });
       const cr = $('cbRuler');
-      const ref = BY_ID[REF_ID] || BY_ID.gregorian;
-      if (cr && ref) cr.textContent = day === null ? '—' : safeFormatDay(day, ref);
+      const ref0 = BY_ID[REF_ID] || BY_ID.gregorian;
+      if (cr && ref0) cr.textContent = day === null ? '—' : safeFormatDay(day, ref0);
     }
     // bold date inside the ruler, at the crosshair's y
     const rd = $('rulerDate');
@@ -387,7 +455,7 @@
 
   function updateRange() {
     const s = sc();
-    const d1 = px2day(s.scrollTop - bodyOffset()), d2 = px2day(s.scrollTop + s.clientHeight - bodyOffset());
+    const d1 = px2day(s.scrollTop), d2 = px2day(s.scrollTop + s.clientHeight);
     const ref = BY_ID.gregorian;
     $('range').textContent =
       `viewing ${safeFormatDay(Math.round(d1), ref)} → ${safeFormatDay(Math.round(d2), ref)}` +
@@ -399,21 +467,22 @@
   function moveCrosshair() {
     const s = sc();
     const c = ensureCrosshair();
-    // The crosshair is a child of #vt-scroll, so its `top` is in VIEWPORT
-    // coordinates; the day map is in column-body coordinates.
+    // crosshair lives in VIEWPORT space; its day comes from the content space
     const viewY = s.scrollTop + s.clientHeight / 2;
     c.style.top = viewY + 'px';
-    // the crosshair persists: it is only ever repositioned, never hidden
     c.style.display = '';
-    const day = Math.round(px2day(viewY - bodyOffset()));
+    const day = Math.round(px2day(viewToContent(viewY)));
     LAST_CROSS_DAY = day;
     updateCrossBubbles(day);
   }
 
-  /** Place the crosshair at a viewport y (used by scroll + zoom). */
-  function placeCrosshair(viewY) {
+  /** Place the crosshair at the vertical centre of the VIEWPORT.
+     `top` is in viewport space, so scrollTop must NOT be part of it. */
+  function placeCrosshair() {
+    const s = sc();
     const c = ensureCrosshair();
-    c.style.top = viewY + 'px';
+    c.style.top = (s.clientHeight / 2) + 'px';
+    c.style.display = '';
     moveCrosshair();
   }
 
@@ -422,13 +491,22 @@
       c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   }
 
+  /* Assign scrollTop WITHOUT triggering a re-render. NOTE: the SELF_SCROLL
+     guard this relies on was reverted — see docs/batch5.md. Presets that set
+     scrollTop after render() are currently unreliable. */
+  function setScrollTop(px) {
+    const s = sc();
+    s.scrollTop = Math.max(px, 0);
+  }
+
   function zoom(factor) {
     const s = sc();
-    const midDay = px2day(s.scrollTop + s.clientHeight / 2 - bodyOffset());
-    PPD = Math.min(Math.max(PPD * factor, 0.0008), 40);
+    // keep the day under the viewport centre fixed across the zoom
+    const midDay = px2day(viewToContent(s.clientHeight / 2));
+    PPD = clampPPD(PPD * factor);
     render();
-    s.scrollTop = bodyOffset() + day2px(midDay) - s.clientHeight / 2;
-    updateRange(); placeCrosshair(s.scrollTop + s.clientHeight / 2);
+    setScrollTop(day2px(midDay) + HEAD_H - s.clientHeight / 2);
+    updateRange(); placeCrosshair();
   }
 
   /* Presets are defined in PIXELS PER UNIT at exactly LABEL_MIN_PX (30): each
@@ -444,12 +522,14 @@
                          decades: 3652.425, centuries: 36524.25, millennia: 365242.5 }[preset];
       PPD = (unitDays ? LABEL_MIN_PX / unitDays : 0.002);
     }
-    PPD = Math.min(Math.max(PPD, 0.0008), 40);
+    PPD = clampPPD(PPD);
     render();
-    if (preset !== 'fit') {
-      s.scrollTop = bodyOffset() + day2px(today) - s.clientHeight / 2;
-    }
-    updateRange(); placeCrosshair(s.scrollTop + s.clientHeight / 2);
+    /* fit also needs its scroll position set: leaving the old scrollTop with a
+       new (much smaller) scale put the view years past the data. */
+    setScrollTop(preset === 'fit'
+      ? 0
+      : day2px(today) + HEAD_H - s.clientHeight / 2);
+    updateRange(); placeCrosshair();
   }
 
   function bind() {
@@ -477,10 +557,12 @@
       };
       pop.addEventListener('click', (e) => e.stopPropagation());
       document.addEventListener('click', () => { pop.hidden = true; });
-      $('tickDensity').oninput = (e) => { TICK_DENSITY = +e.target.value; render(); };
-      $('labelEvery').oninput = (e) => { LABEL_EVERY = +e.target.value; render(); };
-      $('labelSize').onchange = (e) => { LABEL_SIZE = +e.target.value; applyLabelSize(); render(); };
-      $('showLabels').onchange = (e) => { SHOW_LABELS = e.target.checked; render(); };
+
+      /* Popover controls are optional — the panel is rebuilt and settings are
+         added/removed, so every binding must tolerate a missing element. */
+      const on = (id, ev, fn) => { const el = $(id); if (el) el[ev] = fn; };
+      on('labelSize', 'onchange', (e) => { LABEL_SIZE = +e.target.value; applyLabelSize(); render(); });
+      on('showLabels', 'onchange', (e) => { SHOW_LABELS = e.target.checked; render(); });
       const thT = $('thTick'), thL = $('thLabel');
       if (thT) thT.onchange = (e) => {
         TICK_MIN_PX = Math.max(1, +thT.value || 5); updateTierActive(); render();
@@ -488,6 +570,17 @@
       if (thL) thL.onchange = (e) => {
         LABEL_MIN_PX = Math.max(1, +thL.value || 30); updateTierActive(); render();
       };
+      /* the zoom ceiling is a SETTING, not a hidden constant */
+      const mpIn = $('maxPpdIn'), mpOut = $('maxPpd');
+      if (mpOut) mpOut.textContent = MAX_PPD.toFixed(2);
+      if (mpIn) {
+        mpIn.value = MAX_PPD.toFixed(1);
+        mpIn.onchange = (e) => {
+          MAX_PPD = Math.max(0.5, +mpIn.value || MAX_PPD);
+          if (PPD > MAX_PPD) { PPD = MAX_PPD; render(); }
+          updateTierActive();
+        };
+      }
     }
     function updateTierActive() {
       const el = $('tierActive');
@@ -511,9 +604,11 @@
 
     s.addEventListener('scroll', () => {
       updateRange();
-      // keep the crosshair on the same DAY across a scroll (it is pinned to the
-      // viewport centre), then let the readout follow it
-      placeCrosshair(s.scrollTop + s.clientHeight / 2);
+      /* marks are generated for the VISIBLE window, so they must be
+         regenerated on scroll — otherwise they only exist for the window that
+         was visible when render() last ran (they "appear and disappear"). */
+      render();
+      placeCrosshair();
     });
     window.addEventListener('keydown', e => {
       if (e.target.matches('input,select,textarea')) return;
@@ -532,9 +627,10 @@
        - scroll/zoom drives the CROSSHAIR bubbles
        The crosshair is NOT moved by the mouse, and it never disappears. */
     s.addEventListener('pointermove', e => {
+      // pointer -> viewport y (via the scroll box) -> content -> day
       const r = s.getBoundingClientRect();
       const viewY = e.clientY - r.top;
-      const day = Math.round(px2day(viewY - bodyOffset()));
+      const day = Math.round(px2day(viewToContent(viewY)));
       LAST_CURSOR_DAY = day;
       updateCursorCoords(day);
     });
@@ -554,9 +650,9 @@
     // label threshold — so aim slightly above it.
     PPD = (LABEL_MIN_PX + 1) / 365.2425;
     render();
-    s.scrollTop = Math.max(bodyOffset() + day2px(today) - s.clientHeight * .35, 0);
+    setScrollTop(contentToView(day2px(today)) - s.clientHeight * .35);
     bind();
-    placeCrosshair(s.scrollTop + s.clientHeight / 2);
+    placeCrosshair();
   }
 
   /* Crosshair overlay: a child of #vt-scroll, so it is positioned against the

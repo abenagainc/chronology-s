@@ -139,6 +139,9 @@ function formatDay(day, cal) {
 function gregorianCal() {
   return { id: 'gregorian', name: 'Proleptic Gregorian', kind: 'builtin', color: '#4f7cdf',
     era: 'ce', format: 'YYYY-MM-DD',
+    // A validity window in the calendar's OWN units. `null` = unbounded.
+    // Proleptic calendars are unbounded by definition.
+    boundFrom: null, boundTo: null,
     months: MONTH_NAMES_GREG.map((n, i) => ({ name: n, days: [31,28,31,30,31,30,31,31,30,31,30,31][i] })),
     leapMonths: [{ name: 'Leap day', days: 1, afterMonth: 1 }],
     leap: { kind: 'every4', gregorianCentury: true },
@@ -157,6 +160,7 @@ function hijriCal() {
     note: 'Tabular (arithmetic) Islamic calendar — not moon-sighted; runs ahead of observed dates.',
     era: 'ce', format: 'DD/MM/YYYY',
     eraBefore: 'BH', eraAfter: 'AH',     // before/after the Hijra
+    boundFrom: null, boundTo: null,      // tabular: arithmetic, no historical start
     months, leapMonths: [{ name: 'Leap day', days: 1, afterMonth: 11 }],
     leap: { kind: 'custom', cycle: 30, years: HIJRI_LEAP },
     // AH 1/1/1 = 16 July 622 CE *Julian* (civil epoch). Stated as a JDN so this
@@ -164,6 +168,36 @@ function hijriCal() {
     epoch: [1, 1, 1], epochDay: julianToJdn(622, 7, 16) - gregorianToJdn(2026, 10, 1) };
 }
 const BUILTINS = { gregorian: gregorianCal, julian: julianCal, hijri: hijriCal };
+
+/* --- validity bounds ------------------------------------------------------
+   A calendar may be unbounded, start-only, end-only or bounded. Bounds are in
+   the calendar's OWN units and are resolved to a day index once, at render
+   time, so an edited bound needs no re-registration.
+   Outside its bounds a calendar still CONVERTS — only rendering is suppressed. */
+function boundDay(cal, which) {
+  const v = which === 'from' ? cal.boundFrom : cal.boundTo;
+  if (!v) return null;                       // unbounded on that side
+  return dateToDay(v[0], v[1], v[2], cal);
+}
+
+/** Is `day` inside this calendar's validity window? */
+function calHasDay(cal, day) {
+  const lo = boundDay(cal, 'from'), hi = boundDay(cal, 'to');
+  if (lo !== null && day < lo) return false;
+  if (hi !== null && day > hi) return false;
+  return true;
+}
+
+/** Human-readable bound state, for the calendar row. */
+function boundLabel(cal) {
+  const f = cal.boundFrom, t = cal.boundTo;
+  const fmt = (v) => { const d = dayToDate(dateToDay(v[0], v[1], v[2], cal), cal);
+                      return `${d.y} ${cal.months[d.m - 1]?.name?.slice(0, 3) || d.m}`; };
+  if (f && t) return `${fmt(f)} – ${fmt(t)}`;
+  if (f) return `from ${fmt(f)}`;
+  if (t) return `to ${fmt(t)}`;
+  return 'all';
+}
 
 /* --- registry: resolve epochs against each other, then expose converters -- */
 let BY_ID = {};

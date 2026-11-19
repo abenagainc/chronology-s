@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chronology S — Calendars</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='4' fill='%23d1e7d1'/></svg>">
-<link rel="stylesheet" href="cal/styles.css?cb=11">
+<link rel="stylesheet" href="cal/styles.css?cb=12">
 </head>
 <body>
 <div class="app">
@@ -81,24 +81,6 @@
 
         <div class="popover" id="tickPop" hidden>
           <div class="pop-row">
-            <span class="pop-lab">Tick density</span>
-            <span class="pop-ctl">fewer <input type="range" id="tickDensity" min="0.25" max="4" step="0.25" value="1"> more</span>
-          </div>
-          <div class="pop-row">
-            <span class="pop-lab">Labels</span>
-            <span class="pop-ctl">fewer <input type="range" id="labelEvery" min="1" max="8" step="1" value="1"> more</span>
-          </div>
-          <div class="pop-row">
-            <span class="pop-lab">Label size</span>
-            <span class="pop-ctl">
-              <select id="labelSize">
-                <option value="9">small</option>
-                <option value="10" selected>medium</option>
-                <option value="12">large</option>
-              </select>
-            </span>
-          </div>
-          <div class="pop-row">
             <span class="pop-lab">Show year labels</span>
             <span class="pop-ctl"><input type="checkbox" id="showLabels" checked></span>
           </div>
@@ -112,6 +94,13 @@
           <div class="pop-row"><span class="pop-lab">label from</span>
             <span class="pop-ctl"><input type="number" id="thLabel" min="5" max="400" step="5" value="30"
                  style="width:52px"> px</span></div>
+          <div class="pop-sep"></div>
+          <div class="pop-hint" style="margin-top:2px">Zoom limit: browsers cap scroll height at
+            2^24 px, so the finest scale is <span id="maxPpd"></span> px/day.
+            <span id="zoomLimitNote" style="display:block;margin-top:4px;color:var(--text)"></span></div>
+          <div class="pop-row"><span class="pop-lab">finest scale</span>
+            <span class="pop-ctl"><input type="number" id="maxPpdIn" min="0.5" max="20" step="0.5"
+                 style="width:56px"> px/day</span></div>
         </div>
       </div>
 
@@ -141,6 +130,29 @@
   <div class="drawer-body">
     <label class="fld"><span>Name</span>
       <input id="fName" type="text" placeholder="e.g. Proleptic Gregorian"></label>
+
+    <div class="row2">
+      <label class="fld"><span>Valid from — blank = unbounded</span>
+        <span class="stack">
+          <span class="inline">
+            <input id="fBoundFromD" type="number" min="1" max="31" value="1">
+            <select id="fBoundFromM"></select>
+            <input id="fBoundFromY" type="number" value="1">
+          </span>
+          <small class="err" id="fBoundFromErr"></small>
+        </span>
+      </label>
+      <label class="fld"><span>Valid to — blank = unbounded</span>
+        <span class="stack">
+          <span class="inline">
+            <input id="fBoundToD" type="number" min="1" max="31" value="1">
+            <select id="fBoundToM"></select>
+            <input id="fBoundToY" type="number" value="1">
+          </span>
+          <small class="err" id="fBoundToErr"></small>
+        </span>
+      </label>
+    </div>
 
     <div class="row2">
       <label class="fld"><span>Epoch — day 1/1/1 is this day</span>
@@ -217,13 +229,13 @@
   </div>
 </aside>
 
-<script src="cal/engine.js"></script>
-<script src="cal/store.js"></script>
-<script src="cal/timeline.js"></script>
+<script src="cal/engine.js?cb=20"></script>
+<script src="cal/store.js?cb=20"></script>
+<script src="cal/timeline.js?cb=23"></script>
 <script src="cal/eventeditor.js"></script>
-<script src="cal/editor.js"></script>
-<script src="cal/panels.js"></script>
-<script src="cal/sidebar.js"></script>
+<script src="cal/editor.js?cb=23"></script>
+<script src="cal/panels.js?cb=20"></script>
+<script src="cal/sidebar.js?cb=20"></script>
 <script>
 CalEditor.bind();
 /* shared event drawer (also used by the region-3 events panel) */

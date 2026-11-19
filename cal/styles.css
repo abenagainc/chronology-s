@@ -127,6 +127,9 @@ h2 { font-size: .95rem; margin: 0; }
 .cal-item .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 .cal-item .t { flex: 1; min-width: 0; font-size: 13.5px; color: var(--text);
                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* validity range, e.g. "all" / "from 1582 Oct" */
+.cal-item .bound { flex: 0 0 auto; font-size: 10px; color: var(--muted);
+                   font-family: var(--mono); opacity: .8; }
 .cal-item .acts { display: flex; gap: 1px; flex: 0 0 auto; align-items: center; }
 .cal-item .acts .btn { width: 20px; height: 20px; padding: 0; font-size: 11px; }
 /* colour swatch: one element that is both the indicator and the control */
@@ -258,6 +261,14 @@ h2 { font-size: .95rem; margin: 0; }
 /* the ruler's labels share the column anchoring (top-left of the tick) */
 .ruler-lab { transform: none; left: 3px; }
 
+/* out-of-bounds shading: a bounded calendar's invalid region is darker */
+.oob { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; }
+.oob-band { position: absolute; left: 0; right: 0;
+            background: rgba(0,0,0,.38); pointer-events: none; }
+/* ticks must never draw over the out-of-bounds band */
+.col-body .mark, .col-body .ev { position: absolute; }
+.col-body .mark { z-index: 1; }
+
 .ev { position: absolute; border: none; border-radius: var(--radius-sm); padding: 5px 10px;
       font-size: 13px; line-height: 1.25; color: #fff; overflow: hidden; cursor: default;
       white-space: nowrap; text-overflow: ellipsis; background: #364038; }
@@ -285,16 +296,18 @@ h2 { font-size: .95rem; margin: 0; }
 .legend .cxv { font-family: var(--mono); font-size: 11px; white-space: nowrap; }
 .legend .sw { width: 7px; height: 7px; border-radius: 2px; flex: 0 0 auto; }
 
-/* crosshair bubbles: one date per calendar, over its own column */
-.cross-bubbles { position: sticky; left: 0; z-index: 10; display: flex;
-                 pointer-events: none; transform: translateY(-50%); }
+/* crosshair bubbles: a thin strip ON the line, one date per calendar.
+   Lives in the VIEWPORT layer, so its height is its own content — never the
+   content height (which produced a 218,000px band). */
+.cross-bubbles { position: absolute; top: 0; left: 0; z-index: 10;
+                 display: flex; pointer-events: none;
+                 height: auto; max-height: 40px; overflow: hidden;
+                 transform: translateY(-50%); }
 .cross-bubbles .cb { flex: 0 0 auto; text-align: center; overflow: hidden; }
-.cross-bubbles .cbv, .cross-bubbles .cb-ruler {
-  font-family: var(--mono); font-size: 10px; color: var(--text);
-  background: #1e211eee; border: 1px solid var(--border); border-radius: 4px;
-  padding: 1px 4px; white-space: nowrap; display: inline-block; }
-.cross-bubbles .cb-ruler { font-weight: 700; background: var(--panel);
-  border-color: var(--border); min-width: 62px; }
+.cross-bubbles .cbv { display: inline-block; font-family: var(--mono); font-size: 10px;
+                      color: var(--text); background: #1e211eee;
+                      border: 1px solid var(--border); border-radius: 4px;
+                      padding: 1px 4px; white-space: nowrap; }
 
 /* ---------- drawer (calendar editor) ---------- */
 .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 40; }
