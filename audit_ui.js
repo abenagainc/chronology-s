@@ -33,6 +33,9 @@ async function main() {
   };
   await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1600, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await send('Page.navigate', { url: (process.argv[2] || 'http://127.0.0.1:8012/index.html') + '?cb=audit0' });
+  await new Promise(r => setTimeout(r, 1500));
+  await send('Runtime.evaluate', { expression: `localStorage.clear(); 'cleared'` });
   await send('Page.navigate', { url: process.argv[2] || 'http://127.0.0.1:8012/index.html' });
   await new Promise((r) => setTimeout(r, 2500));
 
@@ -61,7 +64,7 @@ async function main() {
 
     // 3. contrast sanity: text must not be near-invisible on its panel
     const lum = c => { const m = c.match(/\\d+/g).map(Number); return 0.2126*m[0]+0.7152*m[1]+0.0722*m[2]; };
-    for (const sel of ['.brand .name', '.side .label', '.tl-range .range', '.col-head', '.ruler-lab', '.legend']) {
+    for (const sel of ['.brand .name', '.side .label', '.tl-range .range', '.col-head', '.ruler-body .mark.lab', '.legend']) {
       const el = q(sel); if (!el) { issues.push('missing: ' + sel); continue; }
       const s = cs(el);
       const fg = lum(s.color), bgc = lum(s.backgroundColor === 'rgba(0, 0, 0, 0)' ? '0,0,0' : s.backgroundColor);
@@ -92,7 +95,7 @@ async function main() {
       calItems: qa('.cal-item').length,
       columns: qa('#vt-inner .col').length,
       events: evs.length,
-      ruler: qa('.ruler-lab').length,
+      ruler: qa('.ruler-body .mark.lab').length,
     }, sizes: {
       sideW: side.width.toFixed(0), mainW: main.width.toFixed(0),
       scH: sc.height.toFixed(0), scW: sc.width.toFixed(0),

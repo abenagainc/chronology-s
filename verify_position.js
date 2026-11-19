@@ -48,6 +48,14 @@ function ok(cond, label, detail = '') {
     throw new Error('no CDP reply after 3 attempts');
   };
   await send('Runtime.enable'); await send('Page.enable');
+  /* Start from a clean store. Without this the harness inherits whatever the
+     last probe left in localStorage (extra calendars, hidden ids), and results
+     stop being reproducible. Must clear on the APP's origin, so load it first,
+     clear, then reload. */
+  await send('Page.navigate', { url: 'http://127.0.0.1:8012/index.html?cb=pos0' });
+  await new Promise(r => setTimeout(r, 1500));
+  await send('Runtime.evaluate', { expression: `localStorage.clear(); 'cleared'` });
+  await send('Page.navigate', { url: 'http://127.0.0.1:8012/index.html?cb=pos1' });
   await new Promise(r => setTimeout(r, 3000));
 
   const PROBE = `(() => {

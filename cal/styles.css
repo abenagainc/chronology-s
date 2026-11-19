@@ -65,7 +65,7 @@ h2 { font-size: .95rem; margin: 0; }
 .body { flex: 1; display: flex; min-height: 0; background: var(--panel);
         border: 1px solid var(--border-soft); border-top: none;
         border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; }
-.side { width: 284px; flex: 0 0 284px; border-right: 1px solid var(--border);
+.side { width: 320px; flex: 0 0 320px; border-right: 1px solid var(--border);
         padding: 20px 16px; overflow-y: auto; background: var(--panel); }
 .side .label { font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
                color: var(--muted); margin: 0 0 14px; font-weight: 600; }
@@ -128,8 +128,10 @@ h2 { font-size: .95rem; margin: 0; }
 .cal-item .t { flex: 1; min-width: 0; font-size: 13.5px; color: var(--text);
                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* validity range, e.g. "all" / "from 1582 Oct" */
-.cal-item .bound { flex: 0 0 auto; font-size: 10px; color: var(--muted);
-                   font-family: var(--mono); opacity: .8; }
+.cal-item .bound { flex: 0 0 auto; font-size: 9px; color: var(--muted);
+                   font-family: var(--mono); opacity: .8;
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                   max-width: 74px; }
 .cal-item .acts { display: flex; gap: 1px; flex: 0 0 auto; align-items: center; }
 /* duplicate choice popover */
 .pop-dup { width: 280px; text-align: left; }

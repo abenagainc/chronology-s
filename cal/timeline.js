@@ -230,7 +230,13 @@
       for (let y = start; y <= yEnd; y += span, i++) {
         const day = dateToDay(y, 1, 1, cal);
         if (!calHasDay(cal, day)) continue;
-        out.push({ px: day2px(day), tier, major: false,
+        /* clamp to the column: the visible window carries a 400px margin, so
+           the loop can run past DAY_BOT and emit marks BEYOND the body — those
+           overflowed the column by 16,000px and extended the scroll range to
+           year 2545. */
+        const px = day2px(day);
+        if (px < 0 || px > bodyH()) continue;
+        out.push({ px, tier, major: false,
                    label: (show && st[tier].label) ? tierLabel(day, cal, tier) : '' });
       }
     }
@@ -318,10 +324,17 @@
           body.appendChild(band);
           for (const [d0, d1] of [[null, lo], [hi, null]]) {
             if (d0 === null && d1 === null) continue;
+            /* clamp to the column: day2px() can be negative (a date before
+               DAY_TOP) or exceed H, and an unclamped band made the column
+               scrollHeight 16,000px taller than its body — the scroll range
+               ran past the data end (year 2545 instead of 2028). */
+            const topPx = Math.min(Math.max(day2px(d0 === null ? DAY_TOP : d0), 0), H);
+            const botPx = Math.min(Math.max(day2px(d1 === null ? DAY_BOT : d1), 0), H);
+            if (botPx <= topPx) continue;
             const b = document.createElement('div');
             b.className = 'oob-band';
-            if (d1 !== null) { b.style.top = '0px'; b.style.height = day2px(d1) + 'px'; }
-            else { b.style.top = day2px(d0) + 'px'; b.style.height = Math.max(H - day2px(d0), 0) + 'px'; }
+            b.style.top = topPx + 'px';
+            b.style.height = (botPx - topPx) + 'px';
             body.appendChild(b);
           }
         }
@@ -627,7 +640,8 @@
        - scroll/zoom drives the CROSSHAIR bubbles
        The crosshair is NOT moved by the mouse, and it never disappears. */
     s.addEventListener('pointermove', e => {
-      // pointer -> viewport y (via the scroll box) -> content -> day
+      // pointer -> viewport y (relative to the scroll box) -> content -> day.
+      // viewToContent() already adds scrollTop, so use the raw viewport y.
       const r = s.getBoundingClientRect();
       const viewY = e.clientY - r.top;
       const day = Math.round(px2day(viewToContent(viewY)));

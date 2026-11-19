@@ -63,6 +63,9 @@ async function main() {
   await send('Page.enable');
   await send('Runtime.enable');
   // fresh profile -> no junk localStorage
+  await send('Page.navigate', { url: 'http://127.0.0.1:8012/index.html?cb=cdp0' });
+  await new Promise(r => setTimeout(r, 1500));
+  await send('Runtime.evaluate', { expression: `localStorage.clear(); 'cleared'` });
   await send('Page.navigate', { url: 'http://127.0.0.1:8012/index.html?cb=cdp' });
   await new Promise((r) => setTimeout(r, 3000));
 
@@ -75,14 +78,14 @@ async function main() {
     const R = el => { const r = el.getBoundingClientRect(); return { top: +r.top.toFixed(2), h: +r.height.toFixed(2) }; };
     const o = {};
     o.viewportH = q('#vt-scroll').clientHeight;
-    o.rulerLabels = qa('.ruler-lab').length;
+    o.rulerLabels = qa('.ruler-body .mark.lab').length;
     o.columns = qa('#vt-inner .col').length;
     o.rulerHasHead = !!q('.ruler .col-head');
     o.rulerHeadH = q('.ruler .col-head') ? +q('.ruler .col-head').getBoundingClientRect().height.toFixed(2) : null;
     o.colHeadH = qa('#vt-inner .col .col-head').map(h => +h.getBoundingClientRect().height.toFixed(2));
 
     // REAL ruler-vs-column alignment
-    const ruler = new Map(qa('.ruler-lab').map(e => [e.textContent.trim(), e.getBoundingClientRect().top]));
+    const ruler = new Map(qa('.ruler-body .mark.lab').map(e => [e.textContent.trim(), e.getBoundingClientRect().top]));
     const gcol = qa('#vt-inner .col')[0];
     const cl = new Map([...gcol.querySelectorAll('.mark.lab')].map(e => [e.textContent.trim(), e.getBoundingClientRect().top]));
     let worst = 0, n = 0, wy = null;
