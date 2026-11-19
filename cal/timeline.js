@@ -186,24 +186,25 @@
     /* --- DAY ticks --- */
     if (st.day.show) {
       const step = Math.max(1, Math.round(1 / density));
-      const everyDay = Math.max(1, Math.round(7 / density));   // label every Nth day
       let i = 0;
       for (let d = Math.ceil(lo / step) * step; d <= hi; d += step, i++) {
         out.push({ px: day2px(d), tier: 'day', major: false,
-                   label: (show && st.day.label && i % everyDay === 0) ? tierLabel(d, cal, 'day') : '' });
+                   label: (show && st.day.label) ? tierLabel(d, cal, 'day') : '' });
       }
     }
 
     /* --- MONTH ticks, at real month boundaries --- */
     if (st.month.show) {
-      const everyM = Math.max(1, Math.round(12 / density));
+      /* With density fixed at 1 every month is labelled. The old
+         `round(12/density)` gave 12, i.e. ONE month per year — the visible
+         symptom was a single month label that changed as you scrolled. */
       let i = 0;
       for (let y = loY - 1; y <= hiY + 1; y++) {
         for (let m = 1; m <= cal.months.length; m++) {
           const day = dateToDay(y, m, 1, cal);
           if (!inView(day)) continue;
           out.push({ px: day2px(day), tier: 'month', major: false,
-                     label: (show && st.month.label && i % everyM === 0) ? tierLabel(day, cal, 'month') : '' });
+                     label: (show && st.month.label) ? tierLabel(day, cal, 'month') : '' });
           i++;
         }
       }
@@ -214,7 +215,6 @@
     for (const tier of ['year', 'decade', 'century', 'millennium']) {
       if (!st[tier].show) continue;
       const span = spans[tier];
-      const everyN = Math.max(1, Math.round(span / density));
       let i = 0;
       const yStart = Math.max(MINY, loY - span);
       /* bound by the DATA range. DAY_BOT is a day INDEX (822), not a year —
@@ -224,7 +224,7 @@
       for (let y = start; y <= yEnd; y += span, i++) {
         const day = dateToDay(y, 1, 1, cal);
         out.push({ px: day2px(day), tier, major: false,
-                   label: (show && st[tier].label && i % everyN === 0) ? tierLabel(day, cal, tier) : '' });
+                   label: (show && st[tier].label) ? tierLabel(day, cal, tier) : '' });
       }
     }
     return out;
