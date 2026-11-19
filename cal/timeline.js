@@ -301,8 +301,8 @@
     ruler.appendChild(rd);
     frag.appendChild(ruler);
 
-    /* --- one column per VISIBLE calendar --- */
-    const visible = (window.calVisible ? window.calVisible() : S.calendars);
+    /* --- one column per VISIBLE calendar, in the configured order --- */
+    const visible = visibleCals();
     for (const cal of visible) {
       const col = document.createElement('div');
       col.className = 'col';

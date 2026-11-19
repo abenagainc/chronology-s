@@ -36,9 +36,27 @@ window.Settings = (() => {
     return S.ui.settings;
   }
 
-  function get() { return S ? S.ui.settings : load(); }
+  function get() {
+    /* Always read the CURRENT store: timeline.js reloads its own copy on
+       cal-changed, and caching S here made a settings write clobber those
+       changes (the calendar order silently never persisted). */
+    const cur = Store.load();
+    cur.ui = cur.ui || {};
+    cur.ui.settings = Object.assign({}, DEFAULTS, cur.ui.settings || {});
+    cur.ui.settings.units = Object.assign({}, DEFAULTS.units,
+      (cur.ui.settings.units || {}));
+    S = cur;
+    return cur.ui.settings;
+  }
 
-  function save() { Store.save(S); }
+  /** Persist the CURRENT store with our settings merged in — never write a
+     stale snapshot over someone else's changes. */
+  function save() {
+    const cur = Store.load();
+    cur.ui = cur.ui || {};
+    cur.ui.settings = Object.assign({}, DEFAULTS, get());
+    Store.save(cur);
+  }
 
   /** Set one top-level value, or a nested one as 'units.month.fmt'. */
   function set(path, value) {
@@ -49,7 +67,15 @@ window.Settings = (() => {
     save();
   }
 
-  function setOrder(ids) { set('order', ids); }
+  function setOrder(ids) {
+    /* Write straight to the store — set() mutates a throw-away merged copy, so
+       the value never reached localStorage. */
+    const cur = Store.load();
+    cur.ui = cur.ui || {};
+    cur.ui.settings = Object.assign({}, DEFAULTS, cur.ui.settings || {});
+    cur.ui.settings.order = ids.slice();
+    Store.save(cur);
+  }
 
   /** Calendars in the configured order; unknown ids are appended. */
   function ordered(list) {
