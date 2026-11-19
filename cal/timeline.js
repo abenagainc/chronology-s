@@ -12,7 +12,10 @@
   const DAY_BOT = gregorianToDay(MAXY, 12, 31);
   const DAYS_TOTAL = DAY_BOT - DAY_TOP;
   const MINY_D = DAY_TOP, MAXY_D = DAY_BOT;      // day-index bounds
-  const RULER_W = 78, COLW = 210, EVLH = 16;
+  /* widths come from global settings (timeline view variables) */
+  const RULER_W = () => (window.Settings ? Settings.get().rulerWidth : 78);
+  const COLW = () => (window.Settings ? Settings.get().calWidth : 210);
+  const EVLH = 16;
 
   /* visibility: ONE source of truth, shared by the sidebar and the timeline.
      Both modules previously kept their own copy and their own localStorage
@@ -123,8 +126,9 @@
      qualifies labels a position; finer tiers supply ticks. So a label is always
      exactly one of day / month / year, at a real boundary, in the corner of its
      block. */
-  let TICK_MIN_PX = 5;
-  let LABEL_MIN_PX = 30;
+  /* Thresholds come from global settings when present (timeline view vars). */
+  const tickMinPx = () => (window.Settings ? Settings.get().minorLimitPx : 5);
+  const labelMinPx = () => (window.Settings ? Settings.get().majorLimitPx : 30);
 
   /* Approximate unit lengths in days, for the px-per-unit test. */
   const UNIT_DAYS = { day: 1, month: 30.4375, year: 365.2425,
@@ -137,9 +141,9 @@
     for (const t of TIER_ORDER) out[t] = { px: UNIT_DAYS[t] * PPD, show: false, label: false };
     for (const t of TIER_ORDER) {
       const px = out[t].px;
-      if (px < TICK_MIN_PX) continue;
+      if (px < tickMinPx()) continue;
       out[t].show = true;
-      if (px >= LABEL_MIN_PX) out[t].label = true;
+      if (px >= labelMinPx()) out[t].label = true;
     }
     return out;
   }
@@ -256,6 +260,7 @@
     const inner = $('vt-inner');
     inner.innerHTML = '';
     const H = scrollH();              // total scrollable height (body + header)
+    applyTickSettings();
     const frag = document.createDocumentFragment();
 
     /* --- year ruler: sticky, labels only, same map as the columns ---
@@ -263,7 +268,7 @@
        so its body starts at the same y and the labels line up exactly. */
     const ruler = document.createElement('div');
     ruler.className = 'ruler';
-    ruler.style.width = RULER_W + 'px';
+    ruler.style.width = RULER_W() + 'px';
     const rh = document.createElement('div');
     rh.className = 'col-head';
     // reference selector: the ruler declares which calendar it shows
@@ -284,6 +289,7 @@
       const l = document.createElement('div');
       l.className = 'mark lab ' + m.tier;
       l.style.top = m.px + 'px';
+      l.style.fontSize = 'var(--label-' + m.tier + ', 10px)';
       l.textContent = m.label;
       rb.appendChild(l);
     }
@@ -301,7 +307,7 @@
       const col = document.createElement('div');
       col.className = 'col';
       col.dataset.cal = cal.id;
-      col.style.width = COLW + 'px';
+      col.style.width = COLW() + 'px';
       const ready = calReady(cal);
       col.innerHTML = `<div class="col-head"><span class="dot" style="background:${cal.color}"></span>
         ${esc(cal.name)}<span class="tag">${cal.months.length} mo</span>
@@ -352,6 +358,7 @@
             const lab = document.createElement('div');
             lab.className = 'mark lab ' + (m.tier || '');
             lab.style.top = m.px + 'px';
+            lab.style.fontSize = 'var(--label-' + (m.tier || 'year') + ', 10px)';
             lab.textContent = m.label;
             body.appendChild(lab);
           }
@@ -397,10 +404,10 @@
     const cells = [`<span class="cx cx-ruler"><i class="sw" style="background:#8e8e93"></i><span
         class="cxv" id="cxRuler">—</span></span>`]
       .concat(vis.map(c =>
-        `<span class="cx" style="width:${COLW}px"><i class="sw" style="background:${c.color}"></i>
+        `<span class="cx" style="width:${COLW()}px"><i class="sw" style="background:${c.color}"></i>
            <span class="cxv" data-cal="${esc(c.id)}">—</span></span>`));
     row.innerHTML = cells.join('');
-    row.style.paddingLeft = RULER_W + 'px';
+    row.style.paddingLeft = RULER_W() + 'px';
     updateCursorCoords(LAST_CURSOR_DAY);
   }
 
@@ -417,9 +424,9 @@
     b.id = 'crossBubbles';
     b.className = 'cross-bubbles';
     const vis = visibleCals();
-    b.innerHTML = [`<span class="cb" style="width:${RULER_W}px"><span class="cbv" id="cbRuler"></span></span>`]
+    b.innerHTML = [`<span class="cb" style="width:${RULER_W()}px"><span class="cbv" id="cbRuler"></span></span>`]
       .concat(vis.map(c =>
-        `<span class="cb" style="width:${COLW}px"><span class="cbv" data-cal="${esc(c.id)}">—</span></span>`))
+        `<span class="cb" style="width:${COLW()}px"><span class="cbv" data-cal="${esc(c.id)}">—</span></span>`))
       .join('');
     host.appendChild(b);
     updateCrossBubbles(LAST_CROSS_DAY);
@@ -461,6 +468,20 @@
     });
   }
 
+  /** Apply the global tick settings once per render. */
+  function applyTickSettings() {
+    const st = window.Settings ? Settings.get() : null;
+    if (!st) return;
+    const rs = document.documentElement.style;
+    rs.setProperty('--tick-minor', st.minorColor);
+    rs.setProperty('--tick-major', st.majorColor);
+    rs.setProperty('--tick-minor-w', st.minorThickness + 'px');
+    rs.setProperty('--tick-major-w', st.majorThickness + 'px');
+    for (const [k, u] of Object.entries(st.units || {})) {
+      rs.setProperty('--label-' + k, (u.size || 9) + 'px');
+    }
+  }
+
   /** Push the label-size setting onto every label element. */
   function applyLabelSize() {
     document.documentElement.style.setProperty('--label-px', LABEL_SIZE + 'px');
@@ -475,7 +496,11 @@
       `  ·  ${PPD.toFixed(3)} px/day  ·  ${(PPD * 365.2425).toFixed(1)} px/year`;
   }
 
-  function visibleCals() { return (window.calVisible ? window.calVisible() : S.calendars); }
+  /** Calendars to draw, in the configured left-to-right order. */
+  function visibleCals() {
+    const list = window.calVisible ? window.calVisible() : S.calendars;
+    return window.Settings ? Settings.ordered(list) : list;
+  }
 
   function moveCrosshair() {
     const s = sc();
@@ -526,7 +551,7 @@
     updateRange(); placeCrosshair();
   }
 
-  /* Presets are defined in PIXELS PER UNIT at exactly LABEL_MIN_PX (30): each
+  /* Presets are defined in PIXELS PER UNIT at the label threshold: each
      preset is the zoom where that unit just starts labelling. "fit" fits all. */
   function setZoom(preset) {
     const s = sc();
@@ -537,7 +562,7 @@
     } else {
       const unitDays = { days: 1, months: 30.4375, years: 365.2425,
                          decades: 3652.425, centuries: 36524.25, millennia: 365242.5 }[preset];
-      PPD = (unitDays ? LABEL_MIN_PX / unitDays : 0.002);
+      PPD = (unitDays ? labelMinPx() / unitDays : 0.002);
     }
     PPD = clampPPD(PPD);
     render();
@@ -555,8 +580,8 @@
     $('zout').onclick  = () => zoom(1 / 1.5);
     $('up').onclick    = () => s.scrollBy({ top: -s.clientHeight * .8, behavior: 'smooth' });
     $('down').onclick  = () => s.scrollBy({ top:  s.clientHeight * .8, behavior: 'smooth' });
-    $('left').onclick  = () => s.scrollBy({ left: -COLW, behavior: 'smooth' });
-    $('right').onclick = () => s.scrollBy({ left:  COLW, behavior: 'smooth' });
+    $('left').onclick  = () => s.scrollBy({ left: -COLW(), behavior: 'smooth' });
+    $('right').onclick = () => s.scrollBy({ left:  COLW(), behavior: 'smooth' });
     $('todayBtn').onclick = () => setZoom('years');
     $('zoomSel').onchange = () => setZoom($('zoomSel').value);
 
@@ -564,41 +589,7 @@
     window.addEventListener('cal-visibility', () => { S = Store.load(); render(); });
     window.addEventListener('cal-changed', () => { S = Store.load(); render(); });
 
-    /* --- tick / label popover --- */
-    const pop = $('tickPop'), tickBtn = $('tickBtn');
-    if (tickBtn && pop) {
-      tickBtn.onclick = (e) => {
-        e.stopPropagation();
-        pop.hidden = !pop.hidden;
-        if (!pop.hidden) updateTierActive();
-      };
-      pop.addEventListener('click', (e) => e.stopPropagation());
-      document.addEventListener('click', () => { pop.hidden = true; });
-
-      /* Popover controls are optional — the panel is rebuilt and settings are
-         added/removed, so every binding must tolerate a missing element. */
-      const on = (id, ev, fn) => { const el = $(id); if (el) el[ev] = fn; };
-      on('labelSize', 'onchange', (e) => { LABEL_SIZE = +e.target.value; applyLabelSize(); render(); });
-      on('showLabels', 'onchange', (e) => { SHOW_LABELS = e.target.checked; render(); });
-      const thT = $('thTick'), thL = $('thLabel');
-      if (thT) thT.onchange = (e) => {
-        TICK_MIN_PX = Math.max(1, +thT.value || 5); updateTierActive(); render();
-      };
-      if (thL) thL.onchange = (e) => {
-        LABEL_MIN_PX = Math.max(1, +thL.value || 30); updateTierActive(); render();
-      };
-      /* the zoom ceiling is a SETTING, not a hidden constant */
-      const mpIn = $('maxPpdIn'), mpOut = $('maxPpd');
-      if (mpOut) mpOut.textContent = MAX_PPD.toFixed(2);
-      if (mpIn) {
-        mpIn.value = MAX_PPD.toFixed(1);
-        mpIn.onchange = (e) => {
-          MAX_PPD = Math.max(0.5, +mpIn.value || MAX_PPD);
-          if (PPD > MAX_PPD) { PPD = MAX_PPD; render(); }
-          updateTierActive();
-        };
-      }
-    }
+    /* --- tick / label settings now live in the ⚙ global settings panel --- */
     function updateTierActive() {
       const el = $('tierActive');
       if (!el) return;
@@ -607,6 +598,7 @@
         .map(t => `${t} ${st[t].label ? 'labelled' : 'ticks'}`).join(' · ');
       el.textContent = txt ? `now: ${txt}` : 'now: nothing visible';
     }
+
     /* --- ruler reference selector (delegated: render() rebuilds the ruler) --- */
     const inner0 = $('vt-inner');
     inner0.addEventListener('change', (e) => {
@@ -666,7 +658,7 @@
     // default = the "30 px / year" preset, i.e. years just start labelling.
     // 30px / 365.2425d lands at 29.98px for a 365-day year — a hair under the
     // label threshold — so aim slightly above it.
-    PPD = (LABEL_MIN_PX + 1) / 365.2425;
+    PPD = (labelMinPx() + 1) / 365.2425;
     render();
     setScrollTop(contentToView(day2px(today)) - s.clientHeight * .35);
     bind();

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chronology S — Calendars</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='4' fill='%23d1e7d1'/></svg>">
-<link rel="stylesheet" href="cal/styles.css?cb=12">
+<link rel="stylesheet" href="cal/styles.css?cb=13">
 </head>
 <body>
 <div class="app">
@@ -75,32 +75,17 @@
           <button class="btn icon" id="down" title="Later">↓</button>
         </div>
         <div class="ctl-right">
-          <button class="btn sm" id="tickBtn" title="Tick &amp; label settings">☰ ticks</button>
+          <button class="btn sm" id="gearBtn" title="Global settings">⚙</button>
           <button class="btn sm" id="todayBtn">Today</button>
         </div>
 
-        <div class="popover" id="tickPop" hidden>
-          <div class="pop-row">
-            <span class="pop-lab">Show year labels</span>
-            <span class="pop-ctl"><input type="checkbox" id="showLabels" checked></span>
+        <!-- ⚙ global settings: timeline view variables -->
+        <div class="panel" id="settingsPanel" hidden>
+          <div class="panel-head">
+            <span class="label">Global settings</span>
+            <button class="btn ghost" id="settingsClose">✕</button>
           </div>
-          <div class="pop-sep"></div>
-          <div class="pop-hint" style="margin-top:2px">Per unit: below 5px hidden,
-            5–30px ticks only, 30px+ labelled.
-            <span id="tierActive" style="display:block;margin-top:4px;color:var(--text)"></span></div>
-          <div class="pop-row"><span class="pop-lab">hide below</span>
-            <span class="pop-ctl"><input type="number" id="thTick" min="1" max="50" step="1" value="5"
-                 style="width:52px"> px</span></div>
-          <div class="pop-row"><span class="pop-lab">label from</span>
-            <span class="pop-ctl"><input type="number" id="thLabel" min="5" max="400" step="5" value="30"
-                 style="width:52px"> px</span></div>
-          <div class="pop-sep"></div>
-          <div class="pop-hint" style="margin-top:2px">Zoom limit: browsers cap scroll height at
-            2^24 px, so the finest scale is <span id="maxPpd"></span> px/day.
-            <span id="zoomLimitNote" style="display:block;margin-top:4px;color:var(--text)"></span></div>
-          <div class="pop-row"><span class="pop-lab">finest scale</span>
-            <span class="pop-ctl"><input type="number" id="maxPpdIn" min="0.5" max="20" step="0.5"
-                 style="width:56px"> px/day</span></div>
+          <div class="panel-body" id="settingsBody"></div>
         </div>
       </div>
 
@@ -231,13 +216,17 @@
 
 <script src="cal/engine.js?cb=20"></script>
 <script src="cal/store.js?cb=20"></script>
-<script src="cal/timeline.js?cb=34"></script>
+<script src="cal/settings.js?cb=1"></script>
+<script src="cal/settingspanel.js?cb=1"></script>
+<script src="cal/timeline.js?cb=35"></script>
 <script src="cal/eventeditor.js"></script>
 <script src="cal/editor.js?cb=23"></script>
 <script src="cal/panels.js?cb=20"></script>
 <script src="cal/sidebar.js?cb=20"></script>
 <script>
 CalEditor.bind();
+Settings.load();
+window.SettingsPanel.bindGear();
 /* shared event drawer (also used by the region-3 events panel) */
 fetch('cal/event-drawer.html').then(r => r.text()).then(html => {
   document.body.insertAdjacentHTML('beforeend', html);
