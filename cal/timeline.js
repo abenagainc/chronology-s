@@ -43,27 +43,44 @@
   const $ = id => document.getElementById(id);
   const sc = () => $('vt-scroll');
 
-  /* Vertical offset between the scroll-content origin and a column BODY.
-     Events are positioned inside `.col-body`, which sits below the column's
-     header — so content-coordinate y = BODY_OFFSET + day2px(day). The crosshair
-     is drawn in scroll-content coordinates, so every conversion must account
-     for this offset or events sit one header-height away from the crosshair. */
-  function bodyOffset() {
-    const s = sc();
-    const body = s.querySelector('.col-body');
-    if (!body) return 0;
-    return body.getBoundingClientRect().top - s.getBoundingClientRect().top + s.scrollTop;
-  }
-  const day2px = day => (day - DAY_TOP) * PPD;
-  const px2day = px => DAY_TOP + px / PPD;
-  /* SCROLL MODEL — the one place this is defined.
-     The scrollable content = the column BODY (the day range) + one header height,
-     because every column carries a 46px header ABOVE its body. Counting only the
-     day range left the bottom ~225px unreachable, so the crosshair (pinned to
-     the viewport centre) could never reach the last ticks. */
+  /* =====================================================================
+     THE COORDINATE MODEL — the only place it is defined.
+
+     ONE space: CONTENT. A day maps to a content-y via day2px(). Content-y is
+     measured from the TOP OF #vt-inner (the scrollable content), so content-y 0
+     is the first pixel you would see if scrolled to the very top.
+
+     Viewport-y = content-y - scrollTop + HEAD_H
+       (HEAD_H because the column bodies start one header below #vt-inner's top)
+
+     Nothing else in this file may call getBoundingClientRect or read
+     scrollTop to derive a day. Everything goes through:
+        day2px / px2day     content <-> day
+        contentToView()     content -> viewport
+        viewToContent()     viewport -> content
+     Previously bodyOffset() mixed the two spaces and ~10 call sites were wrong.
+     ===================================================================== */
   const HEAD_H = 46;
+  /* DIRECTION: +1 = past on top (later days further down), -1 = future on top.
+     The ONLY place the axis direction is expressed — every other function reads
+     it, so the timeline can be flipped without touching scroll/crosshair/events. */
+  let DIRECTION = 1;
+  const day2px = day => DIRECTION * (day - DAY_TOP) * PPD;
+  const px2day = px => DAY_TOP + DIRECTION * px / PPD;
+  const contentToView = (contentY) => contentY - sc().scrollTop + HEAD_H;
+  const viewToContent = (viewY) => viewY + sc().scrollTop - HEAD_H;
+
   const bodyH = () => DAYS_TOTAL * PPD;
   const scrollH = () => bodyH() + HEAD_H;
+
+  /* The visible window in DAY indices, with a margin so ticks appear just
+     before they scroll in. The single source for every mark generator. */
+  function visibleWindow(marginPx = 400) {
+    const s = sc();
+    const topContent = s.scrollTop - marginPx;
+    const botContent = s.scrollTop + (s.clientHeight || 600) + marginPx;
+    return { lo: px2day(topContent), hi: px2day(botContent) };
+  }
 
   /* Year step for the marks: the smallest step whose spacing is >= MIN_PX apart.
      Returns {step, majorEvery} where majorEvery is how many steps make a labelled
@@ -150,8 +167,8 @@
        converted to calendar dates before being used as a year bound. */
     const s = sc();
     const margin = 400;
-    const lo = px2day(s.scrollTop - margin - bodyOffset());
-    const hi = px2day(s.scrollTop + (s.clientHeight || 600) + margin - bodyOffset());
+    const lo = px2day(s.scrollTop - margin);
+    const hi = px2day(s.scrollTop + (s.clientHeight || 600) + margin);
     const inView = (day) => day >= lo && day <= hi;
     const loY = Math.min(dayToDate(lo, cal).y, dayToDate(hi, cal).y);
     const hiY = Math.max(dayToDate(lo, cal).y, dayToDate(hi, cal).y);
@@ -190,7 +207,9 @@
       const everyN = Math.max(1, Math.round(span / density));
       let i = 0;
       const yStart = Math.max(MINY, loY - span);
-      const yEnd = Math.min(MAXY, hiY + span);
+      /* bound by the DATA range. DAY_BOT is a day INDEX (822), not a year —
+         dividing it by 365 produced MAXY_DATA=3 and the loop never ran. */
+      const yEnd = Math.min(hiY + span, MAXY);
       const start = Math.ceil(yStart / span) * span;
       for (let y = start; y <= yEnd; y += span, i++) {
         const day = dateToDay(y, 1, 1, cal);
@@ -232,10 +251,15 @@
     const rb = document.createElement('div');
     rb.className = 'ruler-body';
     rb.style.height = H + 'px';
+    // the ruler draws the SAME marks as the columns — ticks AND labels
     for (const m of rulerMarks()) {
-      if (!m.label) continue;         // minor ticks get a line, not text
+      const t = document.createElement('div');
+      t.className = 'mark ' + m.tier;
+      t.style.top = m.px + 'px';
+      rb.appendChild(t);
+      if (!m.label) continue;
       const l = document.createElement('div');
-      l.className = 'ruler-lab';
+      l.className = 'mark lab ' + m.tier;
       l.style.top = m.px + 'px';
       l.textContent = m.label;
       rb.appendChild(l);
@@ -330,33 +354,37 @@
   /* The crosshair readout: a thin bubble ON the line, one date per calendar,
      positioned over its own column. Plus a bold date inside the ruler. */
   function renderCrossBubbles() {
-    const inner = $('vt-inner');
+    /* The bubble strip lives in #vt-scroll's VIEWPORT layer, next to the
+       crosshair — NOT in #vt-inner. Inside #vt-inner it inherited the full
+       content height (218,000px) and became a band instead of a bubble. */
+    const host = sc();
     let b = $('crossBubbles');
     if (b) b.remove();
     b = document.createElement('div');
     b.id = 'crossBubbles';
     b.className = 'cross-bubbles';
-    b.style.left = RULER_W + 'px';
     const vis = visibleCals();
-    b.innerHTML = [`<span class="cb-ruler" id="cbRuler"></span>`]
+    b.innerHTML = [`<span class="cb" style="width:${RULER_W}px"><span class="cbv" id="cbRuler"></span></span>`]
       .concat(vis.map(c =>
         `<span class="cb" style="width:${COLW}px"><span class="cbv" data-cal="${esc(c.id)}">—</span></span>`))
       .join('');
-    inner.appendChild(b);
+    host.appendChild(b);
     updateCrossBubbles(LAST_CROSS_DAY);
   }
 
   function updateCrossBubbles(day) {
     const b = $('crossBubbles');
     if (b) {
-      const vis = visibleCals();
+      // sit on the crosshair line, in VIEWPORT space
+      const c = $('cross');
+      b.style.top = c ? c.style.top : '0px';
       b.querySelectorAll('.cbv').forEach(el => {
-        const c = BY_ID[el.dataset.cal] || S.calendars.find(x => x.id === el.dataset.cal);
-        el.textContent = (c && day !== null) ? safeFormatDay(day, c) : '—';
+        const c2 = BY_ID[el.dataset.cal] || S.calendars.find(x => x.id === el.dataset.cal);
+        el.textContent = (c2 && day !== null) ? safeFormatDay(day, c2) : '—';
       });
       const cr = $('cbRuler');
-      const ref = BY_ID[REF_ID] || BY_ID.gregorian;
-      if (cr && ref) cr.textContent = day === null ? '—' : safeFormatDay(day, ref);
+      const ref0 = BY_ID[REF_ID] || BY_ID.gregorian;
+      if (cr && ref0) cr.textContent = day === null ? '—' : safeFormatDay(day, ref0);
     }
     // bold date inside the ruler, at the crosshair's y
     const rd = $('rulerDate');
@@ -387,7 +415,7 @@
 
   function updateRange() {
     const s = sc();
-    const d1 = px2day(s.scrollTop - bodyOffset()), d2 = px2day(s.scrollTop + s.clientHeight - bodyOffset());
+    const d1 = px2day(s.scrollTop), d2 = px2day(s.scrollTop + s.clientHeight);
     const ref = BY_ID.gregorian;
     $('range').textContent =
       `viewing ${safeFormatDay(Math.round(d1), ref)} → ${safeFormatDay(Math.round(d2), ref)}` +
@@ -399,21 +427,22 @@
   function moveCrosshair() {
     const s = sc();
     const c = ensureCrosshair();
-    // The crosshair is a child of #vt-scroll, so its `top` is in VIEWPORT
-    // coordinates; the day map is in column-body coordinates.
+    // crosshair lives in VIEWPORT space; its day comes from the content space
     const viewY = s.scrollTop + s.clientHeight / 2;
     c.style.top = viewY + 'px';
-    // the crosshair persists: it is only ever repositioned, never hidden
     c.style.display = '';
-    const day = Math.round(px2day(viewY - bodyOffset()));
+    const day = Math.round(px2day(viewToContent(viewY)));
     LAST_CROSS_DAY = day;
     updateCrossBubbles(day);
   }
 
-  /** Place the crosshair at a viewport y (used by scroll + zoom). */
-  function placeCrosshair(viewY) {
+  /** Place the crosshair at the vertical centre of the VIEWPORT.
+     `top` is in viewport space, so scrollTop must NOT be part of it. */
+  function placeCrosshair() {
+    const s = sc();
     const c = ensureCrosshair();
-    c.style.top = viewY + 'px';
+    c.style.top = (s.clientHeight / 2) + 'px';
+    c.style.display = '';
     moveCrosshair();
   }
 
@@ -422,13 +451,22 @@
       c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   }
 
+  /* Assign scrollTop WITHOUT triggering a re-render. NOTE: the SELF_SCROLL
+     guard this relies on was reverted — see docs/batch5.md. Presets that set
+     scrollTop after render() are currently unreliable. */
+  function setScrollTop(px) {
+    const s = sc();
+    s.scrollTop = Math.max(px, 0);
+  }
+
   function zoom(factor) {
     const s = sc();
-    const midDay = px2day(s.scrollTop + s.clientHeight / 2 - bodyOffset());
+    // keep the day under the viewport centre fixed across the zoom
+    const midDay = px2day(viewToContent(s.clientHeight / 2));
     PPD = Math.min(Math.max(PPD * factor, 0.0008), 40);
     render();
-    s.scrollTop = bodyOffset() + day2px(midDay) - s.clientHeight / 2;
-    updateRange(); placeCrosshair(s.scrollTop + s.clientHeight / 2);
+    setScrollTop(contentToView(day2px(midDay)) - s.clientHeight / 2);
+    updateRange(); placeCrosshair();
   }
 
   /* Presets are defined in PIXELS PER UNIT at exactly LABEL_MIN_PX (30): each
@@ -447,9 +485,9 @@
     PPD = Math.min(Math.max(PPD, 0.0008), 40);
     render();
     if (preset !== 'fit') {
-      s.scrollTop = bodyOffset() + day2px(today) - s.clientHeight / 2;
+      setScrollTop(contentToView(day2px(today)) - s.clientHeight / 2);
     }
-    updateRange(); placeCrosshair(s.scrollTop + s.clientHeight / 2);
+    updateRange(); placeCrosshair();
   }
 
   function bind() {
@@ -511,9 +549,11 @@
 
     s.addEventListener('scroll', () => {
       updateRange();
-      // keep the crosshair on the same DAY across a scroll (it is pinned to the
-      // viewport centre), then let the readout follow it
-      placeCrosshair(s.scrollTop + s.clientHeight / 2);
+      /* marks are generated for the VISIBLE window, so they must be
+         regenerated on scroll — otherwise they only exist for the window that
+         was visible when render() last ran (they "appear and disappear"). */
+      render();
+      placeCrosshair();
     });
     window.addEventListener('keydown', e => {
       if (e.target.matches('input,select,textarea')) return;
@@ -532,9 +572,10 @@
        - scroll/zoom drives the CROSSHAIR bubbles
        The crosshair is NOT moved by the mouse, and it never disappears. */
     s.addEventListener('pointermove', e => {
+      // pointer -> viewport y (via the scroll box) -> content -> day
       const r = s.getBoundingClientRect();
       const viewY = e.clientY - r.top;
-      const day = Math.round(px2day(viewY - bodyOffset()));
+      const day = Math.round(px2day(viewToContent(viewY)));
       LAST_CURSOR_DAY = day;
       updateCursorCoords(day);
     });
@@ -554,9 +595,9 @@
     // label threshold — so aim slightly above it.
     PPD = (LABEL_MIN_PX + 1) / 365.2425;
     render();
-    s.scrollTop = Math.max(bodyOffset() + day2px(today) - s.clientHeight * .35, 0);
+    setScrollTop(contentToView(day2px(today)) - s.clientHeight * .35);
     bind();
-    placeCrosshair(s.scrollTop + s.clientHeight / 2);
+    placeCrosshair();
   }
 
   /* Crosshair overlay: a child of #vt-scroll, so it is positioned against the

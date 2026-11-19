@@ -61,7 +61,7 @@ console.log('\n[1] Timeline geometry (index.html)');
                'cal/panels.js', 'cal/sidebar.js']);
   const d = page.doc;
 
-  const ruler = [...d.querySelectorAll('.ruler-lab')];
+  const ruler = [...d.querySelectorAll('.mark.lab')];
   const cols = [...d.querySelectorAll('#vt-inner .col')];
   ok(ruler.length > 0, 'year ruler draws labels', ruler.length + ' labels');
   ok(cols.length === 2, 'one column per calendar', cols.length + ' columns');
