@@ -69,10 +69,13 @@
      ===================================================================== */
   const HEAD_H = 46;
   /* DIRECTION: +1 = past on top (later days further down), -1 = future on top.
-     The ONLY place the axis direction is expressed — every other function reads
-     it, so the timeline can be flipped without touching scroll/crosshair/events. */
+     day2px() ALWAYS returns a POSITIVE offset from the top of the content box,
+     measured from DAY_TOP. For DIRECTION=-1 the content box is flipped with a
+     transform (applyDirectionTransform), so scrolling and the scroll extent
+     stay sane. Returning a negative day2px broke the mark clamp and the window
+     maths — measured: 0 marks rendered and the range read year 12015 BCE. */
   let DIRECTION = 1;
-  /** Read from global settings; returns the new value. */
+  /** Read from global settings. Returns true if it changed. */
   function syncDirection() {
     const s = window.Settings ? Settings.get().direction : 1;
     const d = s === -1 ? -1 : 1;
@@ -80,10 +83,22 @@
     DIRECTION = d;
     return changed;
   }
-  const day2px = day => DIRECTION * (day - DAY_TOP) * PPD;
-  const px2day = px => DAY_TOP + DIRECTION * px / PPD;
+  const day2px = day => (day - DAY_TOP) * PPD;
+  const px2day = px => DAY_TOP + px / PPD;
   const contentToView = (contentY) => contentY - sc().scrollTop + HEAD_H;
   const viewToContent = (viewY) => viewY + sc().scrollTop - HEAD_H;
+  /* Where must scrollTop be for `day` to sit at the viewport centre?
+     The content is flipped with a transform for DIRECTION=-1, which does NOT
+     move scrollTop, but it reverses which end of the content is at the top of
+     the box — so the offset is measured from the far end. */
+  const scrollForDay = (day, viewOffset) => {
+    const y = day2px(day);
+    return DIRECTION === 1
+      ? y + HEAD_H - viewOffset
+      /* mirrored: the flipped body paints a mark at H-y, so scrollTop is
+         measured from the far end. */
+      : bodyH() - y + HEAD_H - viewOffset;
+  };
 
   const bodyH = () => DAYS_TOTAL * PPD;
   const scrollH = () => bodyH() + HEAD_H;
@@ -266,8 +281,7 @@
 
   function render() {
     const inner = $('vt-inner');
-    /* Flipping the axis changes the meaning of scrollTop, so remember the day
-       under the viewport centre and restore it afterwards. */
+    /* Remember the day under the viewport centre before the axis changes. */
     const keepDay = px2day(viewToContent(sc().clientHeight / 2));
     const flipped = syncDirection();
     inner.innerHTML = '';
@@ -395,12 +409,25 @@
       frag.appendChild(col);
     }
     inner.appendChild(frag);
-    /* put the day we were looking at back under the viewport centre — ONLY in
-       the +1 direction, where the arithmetic is verified. Flipping with
-       DIRECTION=-1 still loses the position; see docs/batch7.md. */
-    if (flipped && DIRECTION === 1) {
+    /* DIRECTION=-1: the day map stays positive and each COLUMN BODY is flipped
+       with scaleY(-1) about its own TOP edge, so a mark at `top: y` paints at
+       H-y — later days sit HIGHER. Because the painting is mirrored, the scroll
+       offset is mirrored too: scrollTop = scrollH - clientH - unscrolledTop.
+       transform-origin 0 0 keeps layout untouched, so the scroll extent and
+       the mark clamp are unaffected. */
+    if (DIRECTION === -1) {
+      inner.querySelectorAll('.col-body').forEach(b => {
+        b.style.transformOrigin = '0 0';
+        b.style.transform = `translateY(${H}px) scaleY(-1)`;
+      });
+    }
+    /* Restore the day under the viewport centre after a flip. With -1 the
+       painting is mirrored, so scrollTop is measured from the far end. */
+    if (flipped) {
       const s = sc();
-      setScrollTop(day2px(keepDay) - s.clientHeight / 2);
+      setScrollTop(DIRECTION === 1
+        ? day2px(keepDay) - s.clientHeight / 2
+        : bodyH() - day2px(keepDay) - s.clientHeight / 2);
     }
     // The crosshair lives in #vt-scroll's own overlay layer (added below), NOT in
     // #vt-inner or a .col-body: those scroll with the content, so a crosshair
@@ -566,7 +593,7 @@
     const midDay = px2day(viewToContent(s.clientHeight / 2));
     PPD = clampPPD(PPD * factor);
     render();
-    setScrollTop(day2px(midDay) + HEAD_H - s.clientHeight / 2);
+    setScrollTop(scrollForDay(midDay, s.clientHeight / 2));
     updateRange(); placeCrosshair();
   }
 
@@ -589,7 +616,7 @@
        new (much smaller) scale put the view years past the data. */
     setScrollTop(preset === 'fit'
       ? 0
-      : day2px(today) + HEAD_H - s.clientHeight / 2);
+      : scrollForDay(today, s.clientHeight / 2));
     updateRange(); placeCrosshair();
   }
 
@@ -679,7 +706,7 @@
     // label threshold — so aim slightly above it.
     PPD = (labelMinPx() + 1) / 365.2425;
     render();
-    setScrollTop(contentToView(day2px(today)) - s.clientHeight * .35);
+    setScrollTop(scrollForDay(today, s.clientHeight * .35));
     bind();
     placeCrosshair();
   }

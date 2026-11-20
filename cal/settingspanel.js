@@ -49,7 +49,9 @@ window.SettingsPanel = (() => {
       <div class="gs-sec">Time direction</div>
       <label class="gs-row"><span>Past on top</span>
         <input id="gs_direction" type="checkbox" ${st.direction === 1 ? 'checked' : ''}
-               title="off = future on top"></label>
+               title="off = future on top" disabled></label>
+      <div class="gs-hint">Future-on-top is not finished yet — flipping currently
+        paints the ticks outside the view. Tracked in docs/batch7.md.</div>
 
       <div class="gs-sec">Time units — label size &amp; format</div>
       ${unitRows}
