@@ -87,17 +87,15 @@
   const px2day = px => DAY_TOP + px / PPD;
   const contentToView = (contentY) => contentY - sc().scrollTop + HEAD_H;
   const viewToContent = (viewY) => viewY + sc().scrollTop - HEAD_H;
-  /* Where must scrollTop be for `day` to sit at the viewport centre?
-     The content is flipped with a transform for DIRECTION=-1, which does NOT
-     move scrollTop, but it reverses which end of the content is at the top of
-     the box — so the offset is measured from the far end. */
+  /* Where must scrollTop be for `day` to sit at `viewOffset` from the top of
+     the viewport? Verified for DIRECTION=+1 by measurement:
+       +1 paints a mark at  top - scrollTop + HEAD_H   =>  scrollTop = y + HEAD_H - viewOffset
+     The DIRECTION=-1 branch is NOT solved: the flip is disabled in the UI
+     (see docs/handover.md). Do not guess it — measure the painted offset of a
+     known mark in both directions and solve from those two equations. */
   const scrollForDay = (day, viewOffset) => {
     const y = day2px(day);
-    return DIRECTION === 1
-      ? y + HEAD_H - viewOffset
-      /* mirrored: the flipped body paints a mark at H-y, so scrollTop is
-         measured from the far end. */
-      : bodyH() - y + HEAD_H - viewOffset;
+    return y + HEAD_H - viewOffset;
   };
 
   const bodyH = () => DAYS_TOTAL * PPD;
@@ -281,9 +279,7 @@
 
   function render() {
     const inner = $('vt-inner');
-    /* Remember the day under the viewport centre before the axis changes. */
-    const keepDay = px2day(viewToContent(sc().clientHeight / 2));
-    const flipped = syncDirection();
+    syncDirection();
     inner.innerHTML = '';
     const H = scrollH();              // total scrollable height (body + header)
     applyTickSettings();
@@ -409,26 +405,9 @@
       frag.appendChild(col);
     }
     inner.appendChild(frag);
-    /* DIRECTION=-1: the day map stays positive and each COLUMN BODY is flipped
-       with scaleY(-1) about its own TOP edge, so a mark at `top: y` paints at
-       H-y — later days sit HIGHER. Because the painting is mirrored, the scroll
-       offset is mirrored too: scrollTop = scrollH - clientH - unscrolledTop.
-       transform-origin 0 0 keeps layout untouched, so the scroll extent and
-       the mark clamp are unaffected. */
-    if (DIRECTION === -1) {
-      inner.querySelectorAll('.col-body').forEach(b => {
-        b.style.transformOrigin = '0 0';
-        b.style.transform = `translateY(${H}px) scaleY(-1)`;
-      });
-    }
-    /* Restore the day under the viewport centre after a flip. With -1 the
-       painting is mirrored, so scrollTop is measured from the far end. */
-    if (flipped) {
-      const s = sc();
-      setScrollTop(DIRECTION === 1
-        ? day2px(keepDay) - s.clientHeight / 2
-        : bodyH() - day2px(keepDay) - s.clientHeight / 2);
-    }
+    /* DIRECTION=-1 flips the painting. DISABLED in the UI: the mirrored
+       scrollTop is unsolved (see docs/handover.md), so the ticks would paint
+       outside the view. Left here, clearly marked, rather than half-wired. */
     // The crosshair lives in #vt-scroll's own overlay layer (added below), NOT in
     // #vt-inner or a .col-body: those scroll with the content, so a crosshair
     // placed there drifts as you scroll and only catches up on the next mouse
